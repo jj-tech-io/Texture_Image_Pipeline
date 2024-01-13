@@ -1,6 +1,6 @@
 import torch
 import torchvision.transforms as transforms
-from PIL import Image
+# from PIL import Image
 from model import BiSeNet
 import cv2
 import numpy as np
@@ -52,9 +52,7 @@ class FacePartSegmentation:
 
     def process_image(self, image, part_labels):
         # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        img = Image.fromarray(image)
-        img = img.resize((self.width,self.height), Image.BILINEAR)
-
+        img = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_LANCZOS4)
         masks = []
         if tuple(part_labels) in self.combined_part_labels:
             part_indices = self.combined_part_labels[tuple(part_labels)]
@@ -69,12 +67,11 @@ class FacePartSegmentation:
 
     def get_skin(self, image, combined=['skin', 'r_ear', 'ear_r']):
         # Convert PIL Image to NumPy array if it's not already
-        if isinstance(image, Image.Image):
-            image = np.array(image)
+        image = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_LANCZOS4)
         image = np.array(image).astype(np.uint8)
         parsing = self.model_inference(image)
-        combined = ['l_ear', 'r_ear','skin', 'mouth']
-        # combined = ['l_ear', 'r_ear','skin', 'mouth', 'nose', 'l_brow', 'r_brow', 'neck', 'neck_l', 'hair', 'l_lip', 'u_lip']
+        # combined = ['l_ear', 'r_ear','skin', 'mouth']
+        combined = ['l_ear', 'r_ear','skin', 'mouth', 'nose', 'l_brow', 'r_brow', 'neck', 'neck_l', 'hair', 'l_lip', 'u_lip']
         part_mask = self.process_image(image, combined)
         print(f"part_mask shape {part_mask.shape}")
         skin_value = 1
@@ -86,6 +83,10 @@ class FacePartSegmentation:
         # skin = cv2.bitwise_and(image, binary_skin_mask_stacked)
         binary_skin_mask_stacked = cv2.resize(binary_skin_mask_stacked, (image.shape[1], image.shape[0]))
         skin = cv2.bitwise_and(image, binary_skin_mask_stacked)
+        fig, ax = plt.subplots(1, 2)
+        ax[0].imshow(skin)
+        ax[1].imshow(part_mask)
+        plt.show()
         return skin, part_mask
     
     def get_skin_tile(self, image):
@@ -113,12 +114,12 @@ class FacePartSegmentation:
         return hair
 
 if __name__ == '__main__':
-    image_dir = r"models_4k"
+    image_dir = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick"
     image_paths = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, f))]
     for image_path in image_paths:
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        segmenter = FacePartSegmentation(model_path=r'C:\Users\joeli\Dropbox\Code\Python Projects\AE_2024_01\torch_face\79999_iter.pth')
+        segmenter = FacePartSegmentation(width=2048, height=2048)
         eyes = ['l_eye', 'r_eye']
         ears = ['l_ear', 'r_ear']
         lips = ['u_lip', 'l_lip']
