@@ -71,7 +71,7 @@ class FacePartSegmentation:
         image = np.array(image).astype(np.uint8)
         parsing = self.model_inference(image)
         # combined = ['l_ear', 'r_ear','skin', 'mouth']
-        combined = ['l_ear', 'r_ear','skin', 'mouth', 'nose', 'l_brow', 'r_brow', 'neck', 'neck_l', 'hair', 'l_lip', 'u_lip']
+        combined = ['l_ear', 'r_ear','skin', 'mouth', 'nose', 'l_brow', 'r_brow', 'neck', 'neck_l', 'hair', 'l_lip', 'u_lip', 'eyes', 'brows']
         part_mask = self.process_image(image, combined)
         print(f"part_mask shape {part_mask.shape}")
         skin_value = 1
@@ -84,9 +84,6 @@ class FacePartSegmentation:
         binary_skin_mask_stacked = cv2.resize(binary_skin_mask_stacked, (image.shape[1], image.shape[0]))
         skin = cv2.bitwise_and(image, binary_skin_mask_stacked)
         fig, ax = plt.subplots(1, 2)
-        ax[0].imshow(skin)
-        ax[1].imshow(part_mask)
-        plt.show()
         return skin, part_mask
     
     def get_skin_tile(self, image):
