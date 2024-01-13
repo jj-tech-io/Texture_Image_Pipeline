@@ -73,8 +73,8 @@ class FacePartSegmentation:
             image = np.array(image)
         image = np.array(image).astype(np.uint8)
         parsing = self.model_inference(image)
-        # combined = ['l_ear', 'r_ear','skin', 'mouth']
-        combined = ['l_ear', 'r_ear','skin', 'mouth', 'nose']
+        combined = ['l_ear', 'r_ear','skin', 'mouth']
+        # combined = ['l_ear', 'r_ear','skin', 'mouth', 'nose', 'l_brow', 'r_brow', 'neck', 'neck_l', 'hair', 'l_lip', 'u_lip']
         part_mask = self.process_image(image, combined)
         print(f"part_mask shape {part_mask.shape}")
         skin_value = 1
@@ -89,7 +89,8 @@ class FacePartSegmentation:
         return skin, part_mask
     
     def get_skin_tile(self, image):
-        skin, part_mask = self.get_skin(image, combined=['l_ear', 'r_ear', 'skin', 'mouth'])
+        # skin, part_mask = self.get_skin(image, combined=['l_ear', 'r_ear', 'skin', 'mouth'])
+        skin, part_mask = self.get_skin(image, combined=['l_ear', 'r_ear', 'skin', 'mouth', 'nose'])
         print(f"skin shape {skin.shape}")
         non_black_mask = np.any(skin != [0, 0, 0], axis=-1)
         avg_color = np.mean(skin[non_black_mask], axis=0)

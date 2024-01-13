@@ -12,8 +12,6 @@ class ONNXAutoencoder:
             self.encoder_session = ort.InferenceSession(encoder_path)
             self.decoder_session = ort.InferenceSession(decoder_path)
             print("CUDAExecutionProvider not available. Using CPU.")
-
-
         self.encoder_session = ort.InferenceSession(encoder_path)
         self.decoder_session = ort.InferenceSession(decoder_path)
 
