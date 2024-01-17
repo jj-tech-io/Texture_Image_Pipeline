@@ -1,5 +1,7 @@
 import onnxruntime as ort
 import numpy as np
+print(ort.get_device())
+print(ort.get_available_providers())
 
 class ONNXAutoencoder:
     def __init__(self, encoder_path, decoder_path):
@@ -21,15 +23,13 @@ class ONNXAutoencoder:
         return result
 
     def encode(self, img):
-        # Preprocess and reshape img if needed
-        # Example: img = img.reshape((1, *img.shape))
-        img = img.astype(np.float32)
-        return self.run_inference(self.encoder_session, img)
+        img = img.astype(np.float32).reshape((-1,3))
+        encoded_data = np.asarray(self.run_inference(self.encoder_session, img)[0])
+        return encoded_data
 
     def decode(self, encoded_data):
-        # Reshape encoded_data if needed
-        # Example: encoded_data = encoded_data.reshape((1, *encoded_data.shape))
-        encoded_data = encoded_data.astype(np.float32)
-        return self.run_inference(self.decoder_session, encoded_data)
+        encoded_data = encoded_data.astype(np.float32).reshape((-1,5))
+        decoded_data = np.asarray(self.run_inference(self.decoder_session, encoded_data)[0])
+        return decoded_data
 
         # Prepare your input data (example data provided here)

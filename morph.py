@@ -58,7 +58,9 @@ def warp_image(target, source, landmarks1, landmarks2):
     warped_image = target.copy()
     transformation_matrices = []
     # Iterate through each triangle in the triangulation
-    for simplex in delaunay.simplices:
+    for simplex in delaunay.simplices[:-1]:
+        if np.any(simplex >= len(landmarks1)) or np.any(simplex >= len(landmarks2)):
+            continue
         # Get the vertices of the triangle in both images
         src_triangle = landmarks1_extended[simplex]
         dest_triangle = landmarks2_extended[simplex]

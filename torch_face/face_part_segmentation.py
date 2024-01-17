@@ -1,18 +1,20 @@
 import torch
 import torchvision.transforms as transforms
 # from PIL import Image
-from model import BiSeNet
+from . import model
+from .model import BiSeNet
 import cv2
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+import pathlib
 
 class FacePartSegmentation:
     def __init__(self,image_path, width=4096, height=4096):
         model_path=r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\torch_face\79999_iter.pth"
         self.width = width
         self.height = height
-        self.image_path = image_path    
+        self.image_path = image_path
         self.image = None
         self.skin_mask = None
         self.skin = None
