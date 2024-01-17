@@ -125,11 +125,9 @@ def apply_transformations_to_single_channel_image(original_image, transformation
 
     return warped_image
 if __name__ == '__main__':
-    # target_image_path = r"C:\Users\joeli\Dropbox\Data\models_4k\light\m32_4k.png"
-    # source_image_path = r"C:\Users\joeli\Dropbox\Data\face_image_data\facescape\2\models_reg\1_neutral.jpg"
+    target_image_path = r"C:\Users\joeli\Dropbox\Data\models_4k\light\m32_4k.png"
+    source_image_path = r"C:\Users\joeli\Dropbox\Data\face_image_data\facescape\2\models_reg\1_neutral.jpg"
     #switch
-    source_image_path = r"textures\m32_8k.png"
-    target_image_path = r"textures\1_neutral.jpg"
     # Read the images into NumPy arrays
     target_image = cv2.imread(target_image_path)
     source_image = cv2.imread(source_image_path)

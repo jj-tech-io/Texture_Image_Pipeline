@@ -10,8 +10,7 @@ import numpy as np
 from PIL import Image, ImageTk
 import CONFIG
 from pathlib import Path
-import main
-from main import *
+
 import torch_face
 from torch_face import face_part_segmentation as fps
 importlib.reload(CONFIG)
@@ -20,11 +19,11 @@ importlib.reload(CONFIG)
 # from AE_Inference import encode, decode, age_mel, age_hem
 # importlib.reload(AE_Inference)
 import numpy as np
-import onnxruntime as ort
-print(ort.get_device())
-print(ort.get_available_providers())
-import onnx_inference 
-from onnx_inference import onnx_ae, modify_latent
+
+import onnx_inference
+from onnx_inference import autoencoder
+from onnx_inference import modify_latent
+
 
 
 class SkinParameterAdjustmentApp:
@@ -46,9 +45,9 @@ class SkinParameterAdjustmentApp:
         self.modified_label = None
         self.load_images(512, 512)
         self.init_app()
-        self.segmenter = fps.FacePartSegmentation(self.image, width=WIDTH, height=HEIGHT)
-        self.skin = self.segmenter.skin
-        onnx_ae = ONNXAutoencoder(encoder_model_path, decoder_model_path)
+        self.segmenter = fps.FacePartSegmentation()
+        self.skin = self.segmenter.get_skin(self.image)[0]
+
     def init_app(self):
         self.root = tk.Tk()
         self.root.configure(background='black')
@@ -92,26 +91,24 @@ class SkinParameterAdjustmentApp:
         modified_4k = original_4k.copy().astype(np.float32)
         original_image = cv2.resize(original_image, (self.WIDTH, self.HEIGHT))
         modified_image = original_image.copy()
-        mel_aged = cv2.resize(mel_aged, (self.WIDTH, self.HEIGHT))*0.25
+        mel_aged = cv2.resize(mel_aged, (self.WIDTH, self.HEIGHT))*0.5
         oxy_aged = cv2.resize(oxy_aged, (self.WIDTH, self.HEIGHT))
         oxy_aged = cv2.bitwise_not(oxy_aged)
         oxy_aged = cv2.GaussianBlur(oxy_aged, (15, 15), 0)
-        # oxy_aged = np.abs(oxy_aged) / np.max(np.abs(oxy_aged))
-        oxy_aged *= 0.025
-
+        oxy_aged = np.abs(oxy_aged) / np.max(np.abs(oxy_aged))
+        oxy_aged *= 0.1
         mel_aged = mel_aged.reshape(-1, )
         oxy_aged = oxy_aged.reshape(-1, )
         self.original_image = original_image
         self.modified_image = modified_image
         self.mel_aged = mel_aged
         self.oxy_aged = oxy_aged
-        
-        self.parameter_maps_original = onnx_ae.encode(self.original_image.reshape(-1, 3) / 255.0)
+        self.parameter_maps_original = autoencoder.encode(self.original_image.reshape(-1, 3) / 255.0)
         self.original_4k = cv2.resize(original_4k, (self.WIDTH, self.WIDTH))
         self.modified_4k = cv2.resize(modified_4k, (self.WIDTH, self.WIDTH))
         self.mel_aged_4k = cv2.resize(mel_aged.reshape((self.WIDTH, self.HEIGHT)), (self.WIDTH, self.WIDTH))
         self.oxy_aged_4k = cv2.resize(oxy_aged.reshape((self.WIDTH, self.HEIGHT)), (self.WIDTH, self.WIDTH))
-        self.parameter_maps_original_4k = onnx_ae.encode(self.original_4k.reshape(-1, 3) / 255.0)
+        self.parameter_maps_original_4k = autoencoder.encode(self.original_4k.reshape(-1, 3) / 255.0)
         self.parameter_maps = self.parameter_maps_original.copy()
 
     def create_slider1(self, parent, label, from_, to, resolution, default_value):
@@ -125,19 +122,15 @@ class SkinParameterAdjustmentApp:
         return slider
     def create_slider(self, parent, label_text, from_, to, resolution, default_value):
         frame = ttk.Frame(parent)
-        
         # Place the frame itself in the parent's grid
         frame.grid(sticky='ew')
         parent.grid_columnconfigure(0, weight=1)  # This makes the frame expand to fill the grid cell
-        
         # Create label and slider within the frame using grid layout
         label = ttk.Label(frame, text=label_text)
         label.grid(row=0, column=0, sticky='w')  # Align label to the left (west)
-
         slider = tk.Scale(frame, from_=from_, to=to, orient='horizontal', length=200, resolution=resolution)
         slider.set(default_value)
         slider.grid(row=0, column=1, sticky='ew')  # Align slider to the right, expand horizontally
-
         frame.grid_columnconfigure(1, weight=1)  # This allows the slider to expand
 
         return slider
@@ -157,7 +150,7 @@ class SkinParameterAdjustmentApp:
         scale_t = self.t_slider.get()
         cm_mask_slider = self.cm_mask_slider.get()
         bh_mask_slider = self.bh_mask_slider.get()
-        print(f"scale_c_m: {scale_c_m}, scale_c_h: {scale_c_h}, scale_b_m: {scale_b_m}, scale_b_h: {scale_b_h}, scale_t: {scale_t}, cm_mask_slider: {cm_mask_slider}, bh_mask_slider: {bh_mask_slider}")
+        # print(f"scale_c_m: {scale_c_m}, scale_c_h: {scale_c_h}, scale_b_m: {scale_b_m}, scale_b_h: {scale_b_h}, scale_t: {scale_t}, cm_mask_slider: {cm_mask_slider}, bh_mask_slider: {bh_mask_slider}")
         parameter_maps[:, 0] = modify_latent.age_mel(parameter_maps[:, 0], age_coef)
         parameter_maps[:, 1] = modify_latent.age_hem(parameter_maps[:, 1], age_coef)
         parameter_maps[:, 0] = scale_c_m * parameter_maps[:, 0]
@@ -175,7 +168,7 @@ class SkinParameterAdjustmentApp:
         except Exception as e:
             print(f"Error: could not update bh_mask {e}")
             sys.exit()
-        recovered = onnx_ae.decode(parameter_maps).reshape((self.WIDTH, self.HEIGHT, 3)) * 255
+        recovered = autoencoder.decode(parameter_maps).reshape((self.WIDTH, self.HEIGHT, 3)) * 255
 
         self.parameter_maps = parameter_maps
         self.modified_image = recovered

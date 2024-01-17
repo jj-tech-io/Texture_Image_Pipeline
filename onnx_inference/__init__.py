@@ -13,4 +13,4 @@ print("Current Working Directory:", current_script_path)
 encoder_model_path = os.path.join(current_script_path, encoder_model_path)
 decoder_model_path = os.path.join(current_script_path, decoder_model_path)
 # Create a shared instance of ONNXAutoencoder
-onnx_ae = ONNXAutoencoder(encoder_model_path, decoder_model_path)
+autoencoder = ONNXAutoencoder(encoder_model_path, decoder_model_path)

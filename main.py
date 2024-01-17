@@ -13,13 +13,11 @@ import transform_objects
 from transform_objects import *
 # import AE_Inference
 # from AE_Inference import encode, decode, age_mel, age_hem, get_masks
-import onnxruntime as ort
-print(ort.get_device())
-print(ort.get_available_providers())
+
 sys.path.append('onnx_inference')
 import onnx_inference
-importlib.reload(onnx_inference)
-from onnx_inference import onnx_ae, modify_latent
+from onnx_inference import autoencoder
+from onnx_inference import modify_latent
 # from onnx_ae import ONNXAutoencoder, age_mel, age_hem, get_masks
 # from onnx_ae import ONNXAutoencoder, age_mel, age_hem, get_masks
 import torch_face
@@ -49,15 +47,14 @@ def morph_images(example_image_path, target_image_path):
     landmarks2 = get_landmarks(target_image)
     warped_example_image, delaunay, transformation_matrices = warp_image(example_image, target_image,
         landmarks1, landmarks2)
-
     return warped_example_image, target_image, example_image
 
 def extract_masks(image):
     Cm, Ch, Bm, Bh, T = modify_latent.get_masks(image)
+    oxy_mask = Bh
     landmarks = get_landmarks(image)
-    combined_mask, lips, eyes, nose, eye_bags, face,oxy_mask, landmark_object, av_skin_color = create_combined_mask(image)
+    combined_mask, face, av_skin_color = create_combined_mask(image)
     skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
-    oxy_mask = cv2.bitwise_not(oxy_mask)
     return Cm, Ch, skin, face, oxy_mask
 
 # apply masks and transformations to target's latent space
@@ -73,16 +70,8 @@ if __name__ == '__main__':
     #texture to be modified
     target_texture_path = r"fitzpatrick\ft_4_m53_4k.png"
     # C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\m32_4k.png
-
     target_texture_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\ft_4_m53_4k.png"
-    example_texture_path = Path(working_dir, example_texture_path)
-    target_texture_path = Path(working_dir, target_texture_path)
     warped_example_image, target_image, example_image = morph_images(Path(working_dir, example_texture_path), Path(working_dir, target_texture_path))
     Cm, Bh, skin, face, oxy_mask = extract_masks(warped_example_image)
-    plt.imshow(skin)
-    plt.show()
-    segmenter = fps.FacePartSegmentation(image_path=target_texture_path, width=WIDTH, height=HEIGHT)
-    skin = segmenter.get_skin()
-    plt.imshow(skin)
-    plt.show()
+    segmenter = fps.FacePartSegmentation()
     apply_transforms(target_image, Cm, Bh, skin, face, oxy_mask)

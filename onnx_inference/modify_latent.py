@@ -1,11 +1,9 @@
 import cv2
 import numpy as np
-import onnxruntime as ort
 
-print(ort.get_device())
-print(ort.get_available_providers())
 import onnx_inference
-from onnx_inference import onnx_ae 
+from onnx_inference import autoencoder
+from onnx_inference import modify_latent
 
 from matplotlib import pyplot as plt
 
@@ -38,7 +36,7 @@ def get_masks(image):
     image = image.astype(np.float32)
     image = image.reshape((-1,3))
     # parameter_maps = np.asarray(onnx_ae.encode(image))
-    parameter_maps = np.asarray(onnx_ae.encode(image))
+    parameter_maps = np.asarray(autoencoder.encode(image))
     print(f"parameter_maps.shape: {parameter_maps.shape}")
     Cm = parameter_maps[:, 0].reshape(WIDTH, HEIGHT)
     Cm = (Cm - np.min(Cm)) / (np.max(Cm) - np.min(Cm))

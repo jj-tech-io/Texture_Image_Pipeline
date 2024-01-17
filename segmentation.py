@@ -21,6 +21,7 @@ import random
 import morph
 
 
+
 LIPS = frozenset([
     # Lips.
     (61, 146),
@@ -433,70 +434,29 @@ def create_combined_mask(image):
     with mp_face_mesh.FaceMesh(
         static_image_mode=True,
         max_num_faces=1,
-        min_detection_confidence=0.25) as face_mesh:
+        min_detection_confidence=0.15) as face_mesh:
         results = face_mesh.process(image)
         if not results.multi_face_landmarks:
-            raise Exception("No face detected in the image.")
+            return None, None
         face_landmarks = results.multi_face_landmarks[0]
         # Generate masks for different parts
         lips = generate_mask(image, face_landmarks, draw_lines, LIPS)
-        eyes = generate_mask(image, face_landmarks, draw_lines, np.array(list(LEFT_EYE) + list(RIGHT_EYE)), translate=(0,-100)) 
-        eyes_object = FaceLandmarks(image=image, segments=np.array(list(LEFT_EYE) + list(RIGHT_EYE)), label="eyes", face_landmarks=face_landmarks)
-        positions = eyes_object.lm_dict
-        #move up by 5%
-        for key in positions.keys():
-            x, y = positions[key]
-            y = y - int(0.05 * y)
-            positions[key] = (x, y)
-
-         #dilate eyes
-        kernel = np.ones((25,25),np.uint8)
-        eyes = cv2.dilate(eyes,kernel,iterations = 6)
-        eyes = cv2.erode(eyes,kernel,iterations = 3)
-        
-
-        nose = generate_mask(image, face_landmarks, draw_lines, NOSTRILS)
-        #dilate nose
-        kernel = np.ones((15,15),np.uint8)
-        nose = cv2.dilate(nose,kernel,iterations = 3)
-        eye_bags = generate_mask(image, face_landmarks, draw_lines, EYE_BAGS)
+        eyes = generate_mask(image, face_landmarks, draw_lines, np.array(list(LEFT_EYE) + list(RIGHT_EYE)), translate=(0,0)) 
+        nose = generate_mask(image, face_landmarks, draw_lines, np.array(list(LEFT_NOSE) + list(RIGHT_NOSE)), translate=(0,0))
         face = generate_mask(image, face_landmarks, draw_lines, FACE_OVAL)
-        # Combine masks
         combined_mask = cv2.bitwise_or(lips, eyes)
+        combined_mask = cv2.bitwise_or(combined_mask, nose)
+        av_skin_color = np.mean(image[face == 255], axis=0)
         combined_mask = cv2.bitwise_not(combined_mask)
-        annotated_image = image.copy()  # Copy of the original image for annotations
-        all_landmarks = np.concatenate([LIPS, EYES, NOSTRILS, EYEBROWS])
-        draw_lines(annotated_image, face_landmarks, all_landmarks)
-        annotated_image = annotate_landmarks(annotated_image, face_landmarks, all_landmarks)
-        #zoom in on eyes using eye  landmarks
-        landmark_object = FaceLandmarks(image=image, segments=EYES, label="label", face_landmarks=face_landmarks)
-        positions = landmark_object.lm_dict
-        #av non masked skin color
-        mask_boolean = combined_mask > 0
-        av_skin_color = np.mean(image[mask_boolean], axis=0)
-        # oxy mask = skin[;,:,0] + eyes + lips
-        oxy_mask = cv2.bitwise_or(np.asarray(eyes, dtype=np.uint8), np.asarray(lips, dtype=np.uint8))
-        return combined_mask, lips, eyes, nose, eye_bags, face,oxy_mask, landmark_object, av_skin_color
+        combined_mask = cv2.bitwise_and(combined_mask, face)
+        plt.imshow(combined_mask)
+        plt.show()
+        return combined_mask, face, av_skin_color
 
-def extract_face_skin_area(img):
-    landmarks_points = morph.get_landmarks(img)
-    # Convert image to HSV
-    hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-    # Create a mask based on FACE_OVAL landmarks
-    face_oval_mask = np.zeros_like(hsv_img[:, :, 0])
-    face_oval_indices = [point[1] for point in FACE_OVAL]
-    face_oval_points = np.array([landmarks_points[idx] for idx in face_oval_indices], dtype=np.int32)
-    cv2.fillPoly(face_oval_mask, [face_oval_points], 1)
-
-    # Use the mask to extract the face oval area
-    masked_hsv = cv2.bitwise_and(hsv_img, hsv_img, mask=face_oval_mask)
-
-    return masked_hsv
-def threshold_face_skin_area(img,av_skin_color,mask=None):
-
-    masked_hsv = extract_face_skin_area(img)
-
+def threshold_face_skin_area(img,av_skin_color,mask):
+    masked_hsv = cv2.cvtColor(cv2.bitwise_or(img, img, mask=mask), cv2.COLOR_BGR2HSV)
+    plt.imshow(masked_hsv)
+    plt.show()
     # Compute mean and standard deviation for each channel using the masked area
     mean_hue = np.mean(masked_hsv[:,:,0][masked_hsv[:,:,0] > 0])
     std_hue = np.std(masked_hsv[:,:,0][masked_hsv[:,:,0] > 0])
@@ -504,43 +464,46 @@ def threshold_face_skin_area(img,av_skin_color,mask=None):
     std_sat = np.std(masked_hsv[:,:,1][masked_hsv[:,:,1] > 0])
     mean_val = np.mean(masked_hsv[:,:,2][masked_hsv[:,:,2] > 0])
     std_val = np.std(masked_hsv[:,:,2][masked_hsv[:,:,2] > 0])
-
     skin_color_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     # Define thresholds based on the mean and standard deviation for each channel
-    lower_bound = [max(0, mean_hue - 1.5*std_hue), max(0, mean_sat - 1.5*std_sat), max(0, mean_val - 1.5*std_val)]
-    upper_bound = [max(255, mean_hue + 1.5*std_hue), min(255, mean_sat + 1.5*std_sat), min(255, mean_val + 1.5*std_val)]
+    lower_bound = [max(0, mean_hue - 2*std_hue), max(0, mean_sat - 2*std_sat), max(0, mean_val - 2*std_val)]
+    upper_bound = [max(255, mean_hue + 2*std_hue), min(255, mean_sat + 2*std_sat), min(255, mean_val + 2*std_val)]
     #make bounds based on av
     av_skin_color_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
     # Convert lists to numpy arrays
     LOWER_THRESHOLD = np.array(lower_bound, dtype=np.uint8)
-    UPPER_THRESHOLD     = np.array(upper_bound, dtype=np.uint8)
-
+    UPPER_THRESHOLD = np.array(upper_bound, dtype=np.uint8)
     # Create a binary mask where the skin color is within the threshold
     skinMask = cv2.inRange(cv2.cvtColor(img, cv2.COLOR_BGR2HSV), LOWER_THRESHOLD, UPPER_THRESHOLD)
-    #heavy blur
-    skinMask = cv2.GaussianBlur(skinMask, (25, 25), 0)
-    skinMask = cv2.GaussianBlur(skinMask, (25, 25), 0)
-    # Extract skin regions using the mask
     skin = cv2.bitwise_or(img, img, mask=skinMask)
     if mask is not None:
         skin = cv2.bitwise_and(skin, skin, mask=mask)
-
+    skin = np.array(skin, dtype=np.uint8)
     return skin
 #main 
 if __name__ == '__main__':
-    image_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Modify_Texture_Docker\textures\m32_8k.png"
-    image_path = r"textures\template_base_uv.png"
-    image = cv2.imread(image_path)
-    image = cv2.resize(image, (4096, 4096))
-    combined_mask = create_combined_mask(image)
-    Cm, Ch, Bm, Bh, T = AE_Inference.get_masks(image)
-    combined_mask, lips, eyes, nose, eye_bags, face,oxy_mask, landmark_object, av_skin_color = create_combined_mask(image)
-    skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
-    masks = [ lips, eyes, nose, eye_bags, face, skin, oxy_mask]
-    fig, ax = plt.subplots(1, len(masks), figsize=(20, 20))
-    for i, mask in enumerate(masks):
-        ax[i].imshow(mask, cmap='gray')
-    plt.show()
+    im_dir = r"fitzpatrick"
+    image_paths = [os.path.join(im_dir, f) for f in os.listdir(im_dir) if f.endswith(".png")]
+    image_path = r"C:\Desktop\joel.jpg"
+    image_paths = [image_path]
+    #reverse
+    image_paths = image_paths[::-1]
+    for i, image_path in enumerate(image_paths):
+        try:
+            image = cv2.imread(image_path)
+            image = cv2.resize(image, (4096, 4096))
+            combined_mask, face, av_skin_color = create_combined_mask(image)
+            skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
+            fig, ax = plt.subplots(1, 3, figsize=(15, 15))
+            ax[0].imshow(image)
+            ax[1].imshow(combined_mask)
+            ax[2].imshow(skin)
+            plt.show()
 
+        except Exception as e:
+            print(e)
+            continue
+
+
+    
     
