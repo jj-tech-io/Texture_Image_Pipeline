@@ -359,47 +359,24 @@ class FaceLandmarks:
 def annotate_landmarks(image, face_landmarks, segments, color=(255,0,0), thickness=5):
     points = []
     for segment in segments:
-        # Ensure that p1 and p2 are integers
         p1, p2 = int(segment[0]), int(segment[1])
-
-        # Calculate the coordinates of the landmarks
         p1x = int(face_landmarks.landmark[p1].x * image.shape[1])
         p1y = int(face_landmarks.landmark[p1].y * image.shape[0])
         p2x = int(face_landmarks.landmark[p2].x * image.shape[1])
         p2y = int(face_landmarks.landmark[p2].y * image.shape[0])
-        
-        # Add the points to the list if they are not already in it
         if [p1x, p1y] not in points:
             points.append([p1x, p1y])
         if [p2x, p2y] not in points:
             points.append([p2x, p2y])
-        # Draw text for each point
         cv2.putText(image, str(p1), (p1x, p1y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.putText(image, str(p2), (p2x, p2y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
     return image
 def generate_mask(image, landmarks, draw_function, indices, blur_kernel=(5,5),translate=(0,0)):
-    """
-    Generate a mask for an image based on specified landmarks.
-
-    Parameters:
-    - image: The input image as a numpy array.
-    - landmarks: The landmarks for the specific feature in the image.
-    - draw_function: The function used to draw on the image based on landmarks.
-    - indices: The indices of the landmarks corresponding to the specific feature.
-    - blur_kernel: The size of the Gaussian blur kernel. Default is (25, 25).
-    
-    Returns:
-    - mask: The generated mask as a numpy array.
-    """
-    # Initialize a blank mask with the same dimensions as the input image
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    # Draw the feature lines on the mask
     mask = draw_function(mask, landmarks, indices, color=(255,255,255),translate=translate)
-    # Find contours and fill them in the mask
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(mask, contours, -1, (255), thickness=cv2.FILLED)
-    # Apply Gaussian blur to smooth the mask
     mask = cv2.GaussianBlur(mask, blur_kernel, 0)
     return mask
 
@@ -449,14 +426,10 @@ def create_combined_mask(image):
         av_skin_color = np.mean(image[face == 255], axis=0)
         combined_mask = cv2.bitwise_not(combined_mask)
         combined_mask = cv2.bitwise_and(combined_mask, face)
-        plt.imshow(combined_mask)
-        plt.show()
         return combined_mask, face, av_skin_color
 
 def threshold_face_skin_area(img,av_skin_color,mask):
     masked_hsv = cv2.cvtColor(cv2.bitwise_or(img, img, mask=mask), cv2.COLOR_BGR2HSV)
-    plt.imshow(masked_hsv)
-    plt.show()
     # Compute mean and standard deviation for each channel using the masked area
     mean_hue = np.mean(masked_hsv[:,:,0][masked_hsv[:,:,0] > 0])
     std_hue = np.std(masked_hsv[:,:,0][masked_hsv[:,:,0] > 0])

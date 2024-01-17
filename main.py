@@ -11,15 +11,10 @@ import morph
 from morph import *
 import transform_objects
 from transform_objects import *
-# import AE_Inference
-# from AE_Inference import encode, decode, age_mel, age_hem, get_masks
-
 sys.path.append('onnx_inference')
 import onnx_inference
 from onnx_inference import autoencoder
 from onnx_inference import modify_latent
-# from onnx_ae import ONNXAutoencoder, age_mel, age_hem, get_masks
-# from onnx_ae import ONNXAutoencoder, age_mel, age_hem, get_masks
 import torch_face
 from torch_face import face_part_segmentation as fps
 import segmentation
@@ -51,15 +46,14 @@ def morph_images(example_image_path, target_image_path):
 
 def extract_masks(image):
     Cm, Ch, Bm, Bh, T = modify_latent.get_masks(image)
-    oxy_mask = Bh
     landmarks = get_landmarks(image)
     combined_mask, face, av_skin_color = create_combined_mask(image)
     skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
-    return Cm, Ch, skin, face, oxy_mask
+    return Cm, Bh, skin, face
 
 # apply masks and transformations to target's latent space
-def apply_transforms(target_image, mel_aged, oxy_aged, skin, face, oxy_mask):
-    app = SkinParameterAdjustmentApp(image=target_image, mel_aged=mel_aged, oxy_aged=oxy_aged,skin=skin,face=face, oxy_mask=oxy_mask, save_name="recovered")
+def apply_transforms(target_image, mel_aged, oxy_aged, skin, face):
+    app = SkinParameterAdjustmentApp(image=target_image, mel_aged=mel_aged, oxy_aged=oxy_aged,skin=skin,face=face, save_name="recovered")
     app.run()
 
 if __name__ == '__main__':
@@ -72,6 +66,6 @@ if __name__ == '__main__':
     # C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\m32_4k.png
     target_texture_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\ft_4_m53_4k.png"
     warped_example_image, target_image, example_image = morph_images(Path(working_dir, example_texture_path), Path(working_dir, target_texture_path))
-    Cm, Bh, skin, face, oxy_mask = extract_masks(warped_example_image)
+    Cm, Bh, skin, face = extract_masks(warped_example_image)
     segmenter = fps.FacePartSegmentation()
-    apply_transforms(target_image, Cm, Bh, skin, face, oxy_mask)
+    apply_transforms(target_image, Cm, Bh, skin, face)

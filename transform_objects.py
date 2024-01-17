@@ -27,13 +27,12 @@ from onnx_inference import modify_latent
 
 
 class SkinParameterAdjustmentApp:
-    def __init__(self, image, mel_aged, oxy_aged, skin, face, oxy_mask, save_name="recovered"):
+    def __init__(self, image, mel_aged, oxy_aged, skin, face, save_name="recovered"):
         self.example_texture_path = "textures/m32_8k.png"
         self.target_texture_path = "textures/m53_4k.png"
         self.save_name = save_name
         self.skin = skin
         self.face = face
-        self.oxy_mask = oxy_mask
         self.image = image
         self.mel_aged = mel_aged
         self.oxy_aged = oxy_aged
@@ -59,11 +58,11 @@ class SkinParameterAdjustmentApp:
         try:
             self.skin = cv2.resize(self.skin, (self.WIDTH, self.HEIGHT))
             self.face = cv2.resize(self.face, (self.WIDTH, self.HEIGHT))
-            self.oxy_mask = cv2.resize(self.oxy_mask, (self.WIDTH, self.HEIGHT))
+            # self.oxy_mask = cv2.resize(self.oxy_mask, (self.WIDTH, self.HEIGHT))
             self.mel_aged = cv2.resize(self.mel_aged, (self.WIDTH, self.HEIGHT))
             self.oxy_aged = cv2.resize(self.oxy_aged, (self.WIDTH, self.HEIGHT))
-            assert self.oxy_mask.shape == self.mel_aged.shape == self.oxy_aged.shape, "Error: Image shapes do not match"
-            assert np.isnan(self.oxy_aged).any() == False and np.isnan(self.mel_aged).any() == False and np.isnan(self.skin).any() == False and np.isnan(self.face).any() == False and np.isnan(self.oxy_mask).any() == False, "Error: NaN values in image"
+            assert self.mel_aged.shape == self.oxy_aged.shape, "Error: Image shapes do not match"
+            assert np.isnan(self.oxy_aged).any() == False and np.isnan(self.mel_aged).any() == False and np.isnan(self.skin).any() == False and np.isnan(self.face).any() == False, "Error: NaN values in image"
         except Exception as e:
             print(f"Error: could not resize skin, face, or oxy_mask: {e}")
             sys.exit()
@@ -95,8 +94,7 @@ class SkinParameterAdjustmentApp:
         oxy_aged = cv2.resize(oxy_aged, (self.WIDTH, self.HEIGHT))
         oxy_aged = cv2.bitwise_not(oxy_aged)
         oxy_aged = cv2.GaussianBlur(oxy_aged, (15, 15), 0)
-        oxy_aged = np.abs(oxy_aged) / np.max(np.abs(oxy_aged))
-        oxy_aged *= 0.1
+        # oxy_aged = np.abs(oxy_aged) / np.max(np.abs(oxy_aged))
         mel_aged = mel_aged.reshape(-1, )
         oxy_aged = oxy_aged.reshape(-1, )
         self.original_image = original_image
@@ -160,14 +158,16 @@ class SkinParameterAdjustmentApp:
         parameter_maps[:, 4] = scale_t * parameter_maps[:, 4]
         cm_new =  (cm_mask_slider * self.mel_aged.reshape(-1)) + (1 - cm_mask_slider) * parameter_maps[:, 0]
         parameter_maps[:, 0] = cm_new
+        bh_new = (bh_mask_slider * self.oxy_aged.reshape(-1)) + (1 - bh_mask_slider) * parameter_maps[:, 3]
+        parameter_maps[:, 3] = bh_new
         # parameter_maps[:, 1] = np.where(self.skin[:,:,0].reshape(-1) != 0, 0, (bh_mask_slider * self.oxy_aged.reshape(-1)) + parameter_maps[:, 1])
-        try:
-            # bh_new = bh_mask_slider * self.oxy_aged.reshape(-1) + (1-bh_mask_slider)*parameter_maps[:, 3]
-            bh_new = np.where(self.oxy_mask.reshape(-1) != 0, parameter_maps[:, 3], (bh_mask_slider * self.oxy_aged.reshape(-1)) + parameter_maps[:, 3])
-            parameter_maps[:, 3] = bh_new
-        except Exception as e:
-            print(f"Error: could not update bh_mask {e}")
-            sys.exit()
+        # try:
+        #     # bh_new = bh_mask_slider * self.oxy_aged.reshape(-1) + (1-bh_mask_slider)*parameter_maps[:, 3]
+        #     bh_new = np.where(self.oxy_mask.reshape(-1) != 0, parameter_maps[:, 3], (bh_mask_slider * self.oxy_aged.reshape(-1)) + parameter_maps[:, 3])
+        #     parameter_maps[:, 3] = bh_new
+        # except Exception as e:
+        #     print(f"Error: could not update bh_mask {e}")
+        #     sys.exit()
         recovered = autoencoder.decode(parameter_maps).reshape((self.WIDTH, self.HEIGHT, 3)) * 255
 
         self.parameter_maps = parameter_maps
@@ -180,13 +180,9 @@ class SkinParameterAdjustmentApp:
 
     def update_images(self, original, modified, save=False):
         if np.max(original) < 1:    
-            plt.imshow(original)
-            plt.show()
             original *= 255
 
         if np.max(modified) < 1:
-            plt.imshow(modified)
-            plt.show()  
             modified *= 255
         try:
             original_pil = Image.fromarray(np.uint8(original))
@@ -265,7 +261,7 @@ class SkinParameterAdjustmentApp:
         self.bh_slider = self.create_slider(self.frame_sliders, "Bh:", 0, 2, 0.1, 0.9)
         self.t_slider = self.create_slider(self.frame_sliders, "T:", 0, 2, 0.1, 1)
         self.cm_mask_slider = self.create_slider(self.frame_sliders, "Melanin Mask:", -1, 1, 0.1, 0.4)
-        self.bh_mask_slider = self.create_slider(self.frame_sliders, "Oxy-Hb Mask:", -1, 1, 0.1, 0.1)
+        self.bh_mask_slider = self.create_slider(self.frame_sliders, "Oxy-Hb Mask:", -0.2, 0.2, 0.01, 0.0)
         self.save_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.save_4k_image)
         self.save_button.pack(side=tk.RIGHT, padx=5, pady=5)
         self.age_coef_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot(changed_slider='age_coef'))
