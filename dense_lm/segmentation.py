@@ -445,7 +445,7 @@ def extract_masks(image):
     landmarks = lm.get_landmarks(image)
     combined_mask, face, av_skin_color = create_combined_mask(image)
     skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
-    return Cm, Bh, skin, face
+    return Cm, Ch, Bm, Bh, T, skin
 
 
     

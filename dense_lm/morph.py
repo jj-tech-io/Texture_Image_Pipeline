@@ -6,8 +6,6 @@ parent_dir = current_script_dir.parent
 # Get the root directory (two levels up or more if needed)
 # Add both directories to sys.path
 sys.path.append(str(parent_dir))
-
-
 from scipy.spatial import Delaunay
 import cv2
 import numpy as np
@@ -94,37 +92,27 @@ def apply_transformations_to_single_channel_image(original_image, transformation
             warped_region * mask
     return warped_image
 
-def morph_images(example_image_path, target_image_path):
+def morph_images(example_image_path, target_image_path,width, height):
     print(f"morphing {example_image_path} to {target_image_path}")
     
     example_image_path = str(example_image_path)
     target_image_path = str(target_image_path)
     try:
         target_image = cv2.imread(target_image_path)
+        target_image = cv2.resize(target_image, (width, height),interpolation=cv2.INTER_LANCZOS4)
     except:
         print(f"Error: could not read source image {example_image_path}")
         sys.exit()
     try:
         example_image = cv2.imread(example_image_path)
+        example_image = cv2.resize(example_image, (width, height),interpolation=cv2.INTER_LANCZOS4)
     except:
         print(f"Error: could not read source image {example_image_path}")
         sys.exit()
-
-    if example_image is None:
-        print(f"Error: could not read source image {example_image_path}")
-        sys.exit()
-    if target_image is None:
-        print(f"Error: could not read target image {target_image_path}")
-        sys.exit()
-    # Define the new width and height
-    WIDTH = target_image.shape[1]
-    HEIGHT = target_image.shape[0]
-    example_image = cv2.resize(example_image, (WIDTH, HEIGHT))
     landmarks1 = get_landmarks(example_image)
     landmarks2 = get_landmarks(target_image)
-    warped_example_image, delaunay, transformation_matrices = warp_image(example_image, target_image,
-        landmarks1, landmarks2)
-    return warped_example_image, target_image, example_image
+    warped_example_image, delaunay, transformation_matrices = warp_image(example_image, target_image,landmarks1, landmarks2)
+    return warped_example_image, target_image
 if __name__ == '__main__':
     target_image_path = r"C:\Users\joeli\Dropbox\Data\models_4k\light\m32_4k.png"
     source_image_path = r"C:\Users\joeli\Dropbox\Data\face_image_data\facescape\2\models_reg\1_neutral.jpg"
@@ -132,28 +120,20 @@ if __name__ == '__main__':
     # Read the images into NumPy arrays
     target_image = cv2.imread(target_image_path)
     source_image = cv2.imread(source_image_path)
-
     # Check if the images are read correctly
     if source_image is None or target_image is None:
         print("Error: could not read one of the images.")
         # Handle the error, for example by exiting the script
         sys.exit()
-
     # Define the new width and height
     WIDTH = 4096
     HEIGHT = 4096
-
-    # Resize the images
     target_image = cv2.resize(target_image, (WIDTH, HEIGHT))
     source_image = cv2.resize(source_image, (WIDTH, HEIGHT))
-
     source_landmarks = get_landmarks(source_image)
     target_landmarks = get_landmarks(target_image)
-
-    # Warp source_image to align with target_image
     warped_source_image, delaunay, transformation_matrices = warp_image(source_image, target_image, source_landmarks, target_landmarks)
     warped_landmarks = get_landmarks(warped_source_image)
-
     plt.imshow(cv2.cvtColor(source_image, cv2.COLOR_BGR2RGB))
     plt.title("Source image")
     plt.show()
