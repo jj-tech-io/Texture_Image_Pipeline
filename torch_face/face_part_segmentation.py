@@ -1,15 +1,26 @@
+import sys
+from pathlib import Path
+current_script_dir = Path(__file__).resolve()
+# Get the parent directory (one level up)
+parent_dir = current_script_dir.parent
+# Get the root directory (two levels up or more if needed)
+root_dir = current_script_dir.parents[1]  # Use parents[2], parents[3], etc., for higher levels
+# Add both directories to sys.path
+sys.path.append(str(parent_dir))
+sys.path.append(str(root_dir))
 import torch
 import torchvision.transforms as transforms
 # import .model 
-from .model import BiSeNet
+from model import BiSeNet
 import cv2
 import numpy as np
 import os
 import matplotlib.pyplot as plt
 import pathlib
-import segmentation
-import morph
-
+from dense_lm import segmentation, morph
+from segmentation import *
+#remove background
+from rembg import remove
 
 class FacePartSegmentation:
     n_classes = 19
@@ -51,10 +62,19 @@ class FacePartSegmentation:
         return part_mask
 
     def get_skin(self, image):
-        skin_mask = self.__get_part_mask(image, ['mouth','l_lip', 'u_lip', 'hair', 'l_eye', 'r_eye'])
-        skin2 = self.__get_part_mask(image, ['skin'])
-
-        return  skin_mask, skin2
+        image = remove(image)   
+        bg = np.zeros_like(image)
+        bg = np.where(image == 0, 255, bg)
+        #convert to rgb
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        skin = self.__get_part_mask(image,['skin','l_ear', 'r_ear','l_brow', 'r_brow', 'nose', 'mouth', 'l_lip', 'u_lip', 'l_eye', 'r_eye'])
+        skin = np.asarray(skin, dtype=np.uint8)
+        image_skin = image * skin[:, :, np.newaxis]
+        mask = cv2.GaussianBlur(skin, (5, 5), 0)
+        mask = (mask - np.min(mask)) / (np.max(mask) - np.min(mask))
+        mask *= 15.0
+        
+        return  mask, image_skin
 
     def get_eyes(self, image):
         return self.__get_part_mask(image, ['l_eye', 'r_eye'])
@@ -64,6 +84,11 @@ class FacePartSegmentation:
 
     def get_lips(self, image):
         return self.__get_part_mask(image, ['u_lip', 'l_lip'])
+    def get_hair(self, image):
+        return self.__get_part_mask(image, ['hair'])
+
+
+
     
 if __name__ == '__main__':
     image_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\ft_4_ft_4_053609.png"
@@ -71,10 +96,10 @@ if __name__ == '__main__':
     # Example Usage
     image = cv2.imread(image_path)
     fps = FacePartSegmentation()
-    skin_mask, skin2 = fps.get_skin(image)
-    fig, ax = plt.subplots(1, 3)
-    ax[0].imshow(image)
-    ax[1].imshow(skin_mask)
-    ax[2].imshow(skin2)
+    mask, image_skin = fps.get_skin(image)
+    fig, ax = plt.subplots(1, 2)
+    ax[0].imshow(mask)
+    ax[1].imshow(image_skin)
+
     plt.show()
-    
+        

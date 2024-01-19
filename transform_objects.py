@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+current_script_dir = Path(__file__).resolve()
+# Get the parent directory (one level up)
+parent_dir = current_script_dir.parent
+sys.path.append(str(parent_dir))
+print(f"parent_dir: {parent_dir}")
 import importlib
 import sys
 import time
@@ -14,34 +21,33 @@ from pathlib import Path
 import torch_face
 from torch_face import face_part_segmentation as fps
 importlib.reload(CONFIG)
-# sys.path.append(r"AE_Inference")
-# import AE_Inference
-# from AE_Inference import encode, decode, age_mel, age_hem
-# importlib.reload(AE_Inference)
 import numpy as np
-
+import dense_lm
+from dense_lm import segmentation, morph
+importlib.reload(dense_lm)
 import onnx_inference
 from onnx_inference import autoencoder
 from onnx_inference import modify_latent
-
-
+import dense_lm
+#reload(dense_lm)
+importlib.reload(dense_lm)
+from dense_lm.morph import morph_images
+from dense_lm.segmentation import extract_masks
 
 class SkinParameterAdjustmentApp:
-    def __init__(self, image, mel_aged, oxy_aged, skin, face, save_name="recovered"):
-        self.example_texture_path = "textures/m32_8k.png"
-        self.target_texture_path = "textures/m53_4k.png"
-        self.save_name = save_name
+    def __init__(self, target_image, Cm, Bh, skin, target_texture_path, example_texture_path):
+        self.example_texture_path = example_texture_path
+        self.target_texture_path = target_texture_path
         self.skin = skin
-        self.face = face
-        self.image = image
-        self.mel_aged = mel_aged
-        self.oxy_aged = oxy_aged
-        self.WIDTH = 512
-        self.HEIGHT = 512
+        self.image = target_image
+        self.mel_aged = Cm
+        self.oxy_aged = Bh
         self.original_image = None
         self.modified_image = None
         self.original_label = None
         self.modified_label = None
+        self.WIDTH = 512
+        self.HEIGHT = 512
         self.load_images(512, 512)
         self.init_app()
         self.segmenter = fps.FacePartSegmentation()
@@ -57,12 +63,11 @@ class SkinParameterAdjustmentApp:
     def load_images(self, width, height):
         try:
             self.skin = cv2.resize(self.skin, (self.WIDTH, self.HEIGHT))
-            self.face = cv2.resize(self.face, (self.WIDTH, self.HEIGHT))
             # self.oxy_mask = cv2.resize(self.oxy_mask, (self.WIDTH, self.HEIGHT))
             self.mel_aged = cv2.resize(self.mel_aged, (self.WIDTH, self.HEIGHT))
             self.oxy_aged = cv2.resize(self.oxy_aged, (self.WIDTH, self.HEIGHT))
             assert self.mel_aged.shape == self.oxy_aged.shape, "Error: Image shapes do not match"
-            assert np.isnan(self.oxy_aged).any() == False and np.isnan(self.mel_aged).any() == False and np.isnan(self.skin).any() == False and np.isnan(self.face).any() == False, "Error: NaN values in image"
+            assert np.isnan(self.oxy_aged).any() == False and np.isnan(self.mel_aged).any() == False and np.isnan(self.skin).any() == False, "Error: NaN values in image"
         except Exception as e:
             print(f"Error: could not resize skin, face, or oxy_mask: {e}")
             sys.exit()
@@ -120,17 +125,14 @@ class SkinParameterAdjustmentApp:
         return slider
     def create_slider(self, parent, label_text, from_, to, resolution, default_value):
         frame = ttk.Frame(parent)
-        # Place the frame itself in the parent's grid
         frame.grid(sticky='ew')
         parent.grid_columnconfigure(0, weight=1)  # This makes the frame expand to fill the grid cell
-        # Create label and slider within the frame using grid layout
         label = ttk.Label(frame, text=label_text)
         label.grid(row=0, column=0, sticky='w')  # Align label to the left (west)
         slider = tk.Scale(frame, from_=from_, to=to, orient='horizontal', length=200, resolution=resolution)
         slider.set(default_value)
         slider.grid(row=0, column=1, sticky='ew')  # Align slider to the right, expand horizontally
         frame.grid_columnconfigure(1, weight=1)  # This allows the slider to expand
-
         return slider
     def save_4k_image(self):
         self.load_images(4096, 4096)
@@ -213,18 +215,18 @@ class SkinParameterAdjustmentApp:
             self.modified_label.image = modified_photo
     def load_new(self):
         # Here you can call your morph_images and extract_masks functions
-        warped_example_image, target_image, example_image = morph_images(Path(self.example_texture_path), Path(self.target_texture_path))
-        Cm, Bh, skin, face, oxy_mask = extract_masks(warped_example_image)
+        warped_example_image, target_image, example_image = morph_images(self.example_texture_path, self.target_texture_path)
+        Cm, Bh, skin, face = extract_masks(warped_example_image)
         # Update the app's image attributes
         self.image = target_image
         self.mel_aged = Cm
         self.oxy_aged = Bh
         self.skin = skin
         self.face = face
-        self.oxy_mask = oxy_mask
+        self.oxy_mask = Bh
         self.original_image = cv2.cvtColor(target_image, cv2.COLOR_BGR2RGB).astype(np.float32)
         self.modified_image = target_image
-        self.load_images()
+        self.load_images(512, 512)
         self.update_plot()  # This is just a placeholder for whatever update you need to do
 
     def load_new_image(self):
