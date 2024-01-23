@@ -35,6 +35,7 @@ from dense_lm.morph import morph_images
 from dense_lm.segmentation import extract_masks
 
 class SkinParameterAdjustmentApp:
+    no_background_image = None
     def __init__(self,target_texture_path, example_texture_path):
         self.example_texture_path = example_texture_path
         self.target_texture_path = target_texture_path
@@ -57,14 +58,11 @@ class SkinParameterAdjustmentApp:
     def load_images(self, width, height):
         try:
             warped_example_image, original_image = morph_images(self.example_texture_path, self.target_texture_path, width, height)
+            plt.imshow(warped_example_image)
+            plt.show()
             Cm, Ch, Bm, Bh, T, skin = extract_masks(warped_example_image)
             torch_skin = fps.FacePartSegmentation()
             mask, image_skin = torch_skin.get_skin(original_image)
-            fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-            ax[0].imshow(skin)
-            ax[1].imshow(mask)
-            ax[2].imshow(image_skin)
-            plt.show()
             self.original_image = original_image
             self.mel_aged = Cm
             self.oxy_aged = Bh
@@ -98,7 +96,7 @@ class SkinParameterAdjustmentApp:
         slider.grid(row=0, column=1, sticky='ew')  # Align slider to the right, expand horizontally
         frame.grid_columnconfigure(1, weight=1)  # This allows the slider to expand
         return slider
-    def display_4k_image(self):
+    def save_4k_image(self):
         self.WIDTH = 4096
         self.HEIGHT = 4096
         self.load_images(4096, 4096)
@@ -199,6 +197,13 @@ class SkinParameterAdjustmentApp:
         if file_path:  # If a file was selected
             print(f"Selected image: {file_path}")
             self.load_new()
+    def apply_mask(self):
+        print(f"apply mask")
+        print(f"var_3d: {self.var_3d.get()}")
+        no_background_image = self.original_image.copy()
+        no_background_image[self.skin == 0] = 0
+        self.original_image = no_background_image
+        self.modified_image =np.where(self.skin == 0, self.original_image, self.modified_image)
 
     def create_gui(self):
         self.frame_sliders = ttk.Frame(self.root)
@@ -216,8 +221,15 @@ class SkinParameterAdjustmentApp:
         self.t_slider = self.create_slider(self.frame_sliders, "T:", 0, 2, 0.1, 1)
         self.cm_mask_slider = self.create_slider(self.frame_sliders, "Melanin Mask:", -1, 1, 0.1, 0.4)
         self.bh_mask_slider = self.create_slider(self.frame_sliders, "Oxy-Hb Mask:", -0.2, 0.2, 0.01, 0.0)
-        self.display_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.display_4k_image)
-        self.display_button.pack(side=tk.RIGHT, padx=5, pady=5)
+        # Step 1: Create a BooleanVar variable to track the state of the checkbox
+        self.var_3d = tk.BooleanVar()
+        self.var_3d.set(False)
+        # Step 2: Create the Checkbutton widget with the command option
+        self.checkbox_3d = ttk.Checkbutton(self.frame_buttons, text="3D Mode", variable=self.var_3d, command=self.apply_mask)
+        # Step 3: Place the checkbox in the GUI
+        self.checkbox_3d.pack(side=tk.LEFT, padx=5, pady=5)
+        self.save_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.save_4k_image)
+        self.save_button.pack(side=tk.RIGHT, padx=5, pady=5)
         self.age_coef_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.cm_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.ch_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
@@ -226,7 +238,7 @@ class SkinParameterAdjustmentApp:
         self.t_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.cm_mask_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.bh_mask_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.display_button.bind("<ButtonRelease-1>", lambda event: self.display_4k_image())
+        self.save_button.bind("<ButtonRelease-1>", lambda event: self.save_4k_image())
         load_image_button = ttk.Button(self.frame_buttons, text="Load New Image", command=self.load_new_image)
         load_image_button.pack(side=tk.LEFT, padx=5, pady=5)
         load_example_image_button = ttk.Button(self.frame_buttons, text="Load Example Image", command=self.load_example_image)
@@ -260,8 +272,8 @@ class SkinParameterAdjustmentApp:
             getattr(self, f"{name}_slider").grid(row=0, column=i, padx=5, pady=5, sticky="ew")
         load_image_button = ttk.Button(self.frame_buttons, text="Load New Image", command=self.load_new_image)
         load_image_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.display_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.display_4k_image)
-        self.display_button.grid(row=0, column=1, padx=5, pady=5, sticky="e")
+        self.save_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.display_4k_image)
+        self.save_button.grid(row=0, column=1, padx=5, pady=5, sticky="e")
         for name in slider_names:
             getattr(self, f"{name}_slider").bind("<ButtonRelease-1>", lambda event, name=name: self.update_plot(changed_slider=name))
         self.root.geometry("1100x900")

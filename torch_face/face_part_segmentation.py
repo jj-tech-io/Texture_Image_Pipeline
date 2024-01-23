@@ -46,8 +46,10 @@ class FacePartSegmentation:
     def __model_inference(self, image):
         to_tensor = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
+                transforms.Normalize(
+                    (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+                ]
+            )
         tensor_image = to_tensor(image).unsqueeze(0).to(self.device)
         with torch.no_grad():
             out = self.net(tensor_image)[0]
@@ -65,7 +67,6 @@ class FacePartSegmentation:
         image = remove(image)   
         bg = np.zeros_like(image)
         bg = np.where(image == 0, 255, bg)
-        #convert to rgb
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         skin = self.__get_part_mask(image,['skin','l_ear', 'r_ear','l_brow', 'r_brow', 'nose', 'mouth', 'l_lip', 'u_lip', 'l_eye', 'r_eye'])
         skin = np.asarray(skin, dtype=np.uint8)
@@ -73,7 +74,6 @@ class FacePartSegmentation:
         mask = cv2.GaussianBlur(skin, (5, 5), 0)
         mask = (mask - np.min(mask)) / (np.max(mask) - np.min(mask))
         mask *= 15.0
-        
         return  mask, image_skin
 
     def get_eyes(self, image):
