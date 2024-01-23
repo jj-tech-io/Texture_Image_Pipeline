@@ -58,8 +58,8 @@ class SkinParameterAdjustmentApp:
     def load_images(self, width, height):
         try:
             warped_example_image, original_image = morph_images(self.example_texture_path, self.target_texture_path, width, height)
-            plt.imshow(warped_example_image)
-            plt.show()
+            # plt.imshow(warped_example_image)
+            # plt.show()
             Cm, Ch, Bm, Bh, T, skin = extract_masks(warped_example_image)
             torch_skin = fps.FacePartSegmentation()
             mask, image_skin = torch_skin.get_skin(original_image)
