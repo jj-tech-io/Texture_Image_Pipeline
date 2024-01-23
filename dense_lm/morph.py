@@ -47,6 +47,8 @@ def get_extended_landmarks(landmarks, image_shape):
 def warp_image(target, source, landmarks1, landmarks2):
     landmarks1_extended = get_extended_landmarks(landmarks1, target.shape)[:-2]
     landmarks2_extended = get_extended_landmarks(landmarks2, source.shape)[:-2]
+    landmarks1_extended = np.array(landmarks1)
+    landmarks2_extended = np.array(landmarks2)
     delaunay = Delaunay(landmarks1_extended)
     warped_image = target.copy()
     transformation_matrices = []
@@ -71,6 +73,50 @@ def warp_image(target, source, landmarks1, landmarks2):
             + warped_triangle * mask[:, :, None]
         transformation_matrices.append((matrix, src_triangle, dest_triangle))
     return warped_image.astype(np.uint8), delaunay, transformation_matrices
+
+
+def warp_image2(target, source, landmarks1, landmarks2):
+    landmarks1_extended = get_extended_landmarks(landmarks1, target.shape)[:-2]
+    landmarks2_extended = get_extended_landmarks(landmarks2, source.shape)[:-2]
+    delaunay = Delaunay(landmarks1_extended)
+    warped_image_with_bg = target.copy()
+    warped_image_no_bg = np.zeros_like(target)
+    transformation_matrices = []
+
+    for simplex in delaunay.simplices[:-1]:
+        if np.any(simplex >= len(landmarks1)) or np.any(simplex >= len(landmarks2)):
+            continue
+
+        src_triangle = landmarks1_extended[simplex]
+        dest_triangle = landmarks2_extended[simplex]
+        src_rect = cv2.boundingRect(np.float32([src_triangle]))
+        dest_rect = cv2.boundingRect(np.float32([dest_triangle]))
+
+        src_cropped_triangle = target[src_rect[1]:src_rect[1] + src_rect[3], src_rect[0]:src_rect[0] + src_rect[2]]
+        dest_cropped_triangle = np.zeros((dest_rect[3], dest_rect[2], 3), dtype=np.float32)
+
+        src_triangle_adjusted = src_triangle - (src_rect[0], src_rect[1])
+        dest_triangle_adjusted = dest_triangle - (dest_rect[0], dest_rect[1])
+
+        matrix = cv2.getAffineTransform(np.float32(src_triangle_adjusted), np.float32(dest_triangle_adjusted))
+        warped_triangle = cv2.warpAffine(src_cropped_triangle, matrix, (dest_rect[2], dest_rect[3]))
+
+        mask = np.zeros((dest_rect[3], dest_rect[2]), dtype=np.uint8)
+        cv2.fillConvexPoly(mask, np.int32(dest_triangle_adjusted), (1, 1, 1), 16, 0)
+
+        # Apply to image with background
+        warped_image_with_bg[dest_rect[1]:dest_rect[1] + dest_rect[3], dest_rect[0]:dest_rect[0] + dest_rect[2]] = \
+            warped_image_with_bg[dest_rect[1]:dest_rect[1] + dest_rect[3], dest_rect[0]:dest_rect[0] + dest_rect[2]] * (1 - mask[:, :, None]) \
+            + warped_triangle * mask[:, :, None]
+
+        # Apply to image without background
+        warped_image_no_bg[dest_rect[1]:dest_rect[1] + dest_rect[3], dest_rect[0]:dest_rect[0] + dest_rect[2]] = \
+            warped_image_no_bg[dest_rect[1]:dest_rect[1] + dest_rect[3], dest_rect[0]:dest_rect[0] + dest_rect[2]] * (1 - mask[:, :, None]) \
+            + warped_triangle * mask[:, :, None]
+
+        transformation_matrices.append((matrix, src_triangle, dest_triangle))
+
+    return warped_image_with_bg.astype(np.uint8), warped_image_no_bg.astype(np.uint8), delaunay, transformation_matrices
 
 def apply_transformations_to_single_channel_image(original_image, transformation_matrices):
     warped_image = np.zeros(original_image.shape, dtype=np.uint8)

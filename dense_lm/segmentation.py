@@ -337,7 +337,7 @@ LOWER_LIPS = np.array(list(LOWER_LIPS))
 NOSE = np.array(list(NOSE))
 EYE_BAG_LEFT = np.array(list(EYE_BAG_LEFT))
 EYE_BAG_RIGHT = np.array(list(EYE_BAG_RIGHT))
-FRECKLE_MASK = np.array(list(FRECKLE_MASK))
+FRECKLE_MASK = np.array(list(FRECKLE_MASK)) 
 BLUSH_MASK = np.array(list(BLUSH_MASK))
 
 def annotate_landmarks(image, face_landmarks, segments, color=(255,0,0), thickness=5):
@@ -356,6 +356,7 @@ def annotate_landmarks(image, face_landmarks, segments, color=(255,0,0), thickne
         cv2.putText(image, str(p2), (p2x, p2y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
     return image
+
 def generate_mask(image, landmarks, draw_function, indices, blur_kernel=(5,5),translate=(0,0)):
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
     mask = draw_function(mask, landmarks, indices, color=(255,255,255),translate=translate)
@@ -387,9 +388,9 @@ def draw_lines(image, face_landmarks, segments, color=(255,0,0), thickness=5, tr
     seed = points[-1]
     cv2.floodFill(image, None, seedPoint=(seed[0], seed[1]), newVal=color, loDiff=(0,0,0,0), upDiff=(0,0,0,0), flags=4 | cv2.FLOODFILL_MASK_ONLY)
     center = (sum([p[0] for p in points])//len(points), sum([p[1] for p in points])//len(points))
-
     return image
-def create_combined_mask(image):
+
+def combined_mask(image):
     print(f"image shape: {image.shape}")
     mp_face_mesh = mp.solutions.face_mesh
     # Process the image with MediaPipe Face Mesh
@@ -408,11 +409,10 @@ def create_combined_mask(image):
         face = generate_mask(image, face_landmarks, draw_lines, FACE_OVAL)
         combined_mask = cv2.bitwise_or(lips, eyes)
         combined_mask = cv2.bitwise_or(combined_mask, nose)
-        av_skin_color = np.mean(image[face == 255], axis=0)
+        # av_skin_color = np.mean(image[face == 255], axis=0)
         combined_mask = cv2.bitwise_not(combined_mask)
         combined_mask = cv2.bitwise_and(combined_mask, face)
-        print(f"image shape: {image.shape}")
-        return combined_mask, face, av_skin_color
+        return combined_mask, face
 
 def threshold_face_skin_area(img,av_skin_color,mask):
     masked_hsv = cv2.cvtColor(cv2.bitwise_or(img, img, mask=mask), cv2.COLOR_BGR2HSV)
@@ -443,9 +443,9 @@ def threshold_face_skin_area(img,av_skin_color,mask):
 def extract_masks(image):
     Cm, Ch, Bm, Bh, T = modify_latent.get_masks(image)
     landmarks = lm.get_landmarks(image)
-    combined_mask, face, av_skin_color = create_combined_mask(image)
-    skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
-    return Cm, Ch, Bm, Bh, T, skin
+    mask, face = combined_mask(image)
+    # skin = threshold_face_skin_area(image,av_skin_color,mask=combined_mask)
+    return Cm, Ch, Bm, Bh, T
 
 
     

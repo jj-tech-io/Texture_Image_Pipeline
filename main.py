@@ -24,6 +24,5 @@ if __name__ == '__main__':
     example_texture_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\m32_4k.png"
     ### --- texture to be modified --- ###
     target_texture_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\ft_4_m53_4k.png"
-
     app = GUI.SkinParameterAdjustmentApp(target_texture_path, example_texture_path)
     app.run()

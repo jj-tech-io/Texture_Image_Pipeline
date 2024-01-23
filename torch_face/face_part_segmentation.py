@@ -20,6 +20,7 @@ import pathlib
 from dense_lm import segmentation, morph
 from segmentation import *
 #remove background
+import rembg
 from rembg import remove
 
 class FacePartSegmentation:
