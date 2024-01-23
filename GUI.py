@@ -64,8 +64,11 @@ class SkinParameterAdjustmentApp:
             torch_skin = fps.FacePartSegmentation()
             mask, image_skin = torch_skin.get_skin(original_image)
             self.original_image = original_image
-            self.mel_aged = Cm
-            self.oxy_aged = Bh
+            self.cm_blend = Cm
+            self.ch_blend = Ch
+            self.bm_blend = Bm
+            self.bh_blend = Bh
+            self.t_blend = T
             self.skin = skin
         except Exception as e:
             print(f"Error: could not load images: {e}")
@@ -122,8 +125,8 @@ class SkinParameterAdjustmentApp:
         scale_b_m = self.bm_slider.get()
         scale_b_h = self.bh_slider.get()
         scale_t = self.t_slider.get()
-        cm_mask_slider = self.cm_mask_slider.get()
-        bh_mask_slider = self.bh_mask_slider.get()
+        cm_blend_slider = self.cm_blend_slider.get()
+        bh_blend_slider = self.bh_blend_slider.get()
         parameter_maps[:, 0] = modify_latent.age_mel(parameter_maps[:, 0], age_coef)
         parameter_maps[:, 1] = modify_latent.age_hem(parameter_maps[:, 1], age_coef)
         parameter_maps[:, 0] = scale_c_m * parameter_maps[:, 0]
@@ -131,9 +134,9 @@ class SkinParameterAdjustmentApp:
         parameter_maps[:, 2] = scale_b_m * parameter_maps[:, 2]
         parameter_maps[:, 3] = scale_b_h * parameter_maps[:, 3]
         parameter_maps[:, 4] = scale_t * parameter_maps[:, 4]
-        cm_new =  (cm_mask_slider * self.mel_aged.reshape(-1)) + (1 - cm_mask_slider) * parameter_maps[:, 0]
+        cm_new =  (cm_blend_slider * self.cm_blend.reshape(-1)) + (1 - cm_blend_slider) * parameter_maps[:, 0]
         parameter_maps[:, 0] = cm_new
-        bh_new = (bh_mask_slider * self.oxy_aged.reshape(-1)) + (1 - bh_mask_slider) * parameter_maps[:, 3]
+        bh_new = (bh_blend_slider * self.bh_blend.reshape(-1)) + (1 - bh_blend_slider) * parameter_maps[:, 3]
         parameter_maps[:, 3] = bh_new
         recovered = autoencoder.decode(parameter_maps).reshape((self.WIDTH, self.HEIGHT, 3)) * 255
         self.parameter_maps = parameter_maps
@@ -219,8 +222,11 @@ class SkinParameterAdjustmentApp:
         self.bm_slider = self.create_slider(self.frame_sliders, "Bm:", 0, 2, 0.1, 1)
         self.bh_slider = self.create_slider(self.frame_sliders, "Bh:", 0, 2, 0.1, 0.9)
         self.t_slider = self.create_slider(self.frame_sliders, "T:", 0, 2, 0.1, 1)
-        self.cm_mask_slider = self.create_slider(self.frame_sliders, "Melanin Mask:", -1, 1, 0.1, 0.4)
-        self.bh_mask_slider = self.create_slider(self.frame_sliders, "Oxy-Hb Mask:", -0.2, 0.2, 0.01, 0.0)
+        self.cm_blend_slider = self.create_slider(self.frame_sliders, "Cm blend:", -1, 1, 0.1, 0.4)
+        self.ch_blend_slider = self.create_slider(self.frame_sliders, "Ch blend:", -1, 1, 0.1, 0.4)
+        self.bm_blend_slider = self.create_slider(self.frame_sliders, "Bm blend:", -1, 1, 0.1, 0.4)
+        self.bh_blend_slider = self.create_slider(self.frame_sliders, "Bh blend:", -0.2, 0.2, 0.01, 0.0)
+        self.t_blend_slider = self.create_slider(self.frame_sliders, "T blend:", -1, 1, 0.1, 0.4)
         # Step 1: Create a BooleanVar variable to track the state of the checkbox
         self.var_3d = tk.BooleanVar()
         self.var_3d.set(False)
@@ -236,8 +242,11 @@ class SkinParameterAdjustmentApp:
         self.bm_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.bh_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.t_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.cm_mask_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bh_mask_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
+        self.cm_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
+        self.ch_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
+        self.bh_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
+        self.bm_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
+        self.t_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.save_button.bind("<ButtonRelease-1>", lambda event: self.save_4k_image())
         load_image_button = ttk.Button(self.frame_buttons, text="Load New Image", command=self.load_new_image)
         load_image_button.pack(side=tk.LEFT, padx=5, pady=5)
@@ -248,36 +257,6 @@ class SkinParameterAdjustmentApp:
         self.root.geometry("+0+0")
         self.update_plot()
 
-    def create_gui1(self):
-        self.root.state('zoomed')
-        self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_rowconfigure(1, weight=1)
-        self.frame_sliders = ttk.Frame(self.root)
-        self.frame_sliders.grid(row=0, column=0, sticky="ew", padx=10)
-        self.frame_images = ttk.Frame(self.root)
-        self.frame_images.grid(row=1, column=0, sticky="nsew")
-        self.frame_buttons = ttk.Frame(self.root)
-        self.frame_buttons.grid(row=2, column=0, sticky="ew")
-        self.frame_sliders.grid_columnconfigure(0, weight=1)
-        self.age_coef_slider = self.create_slider(self.frame_sliders, "Age(decades):", 0, 10, 0.1, 2.0)
-        self.cm_slider = self.create_slider(self.frame_sliders, "Cm:", 0, 2, 0.1, 1)
-        self.ch_slider = self.create_slider(self.frame_sliders, "Ch:", 0, 2, 0.1, 1)
-        self.bm_slider = self.create_slider(self.frame_sliders, "Bm:", 0, 2, 0.1, 1)
-        self.bh_slider = self.create_slider(self.frame_sliders, "Bh:", 0, 2, 0.1, 0.9)
-        self.t_slider = self.create_slider(self.frame_sliders, "T:", 0, 2, 0.1, 1)
-        self.cm_mask_slider = self.create_slider(self.frame_sliders, "Melanin Mask:", -1, 1, 0.1, 0.6)
-        self.bh_mask_slider = self.create_slider(self.frame_sliders, "Oxy-Hb Mask:", -1, 1, 0.1, 0.1)
-        slider_names = ['age_coef', 'cm', 'ch', 'bm', 'bh', 't', 'cm_mask', 'bh_mask']
-        for i, name in enumerate(slider_names):
-            getattr(self, f"{name}_slider").grid(row=0, column=i, padx=5, pady=5, sticky="ew")
-        load_image_button = ttk.Button(self.frame_buttons, text="Load New Image", command=self.load_new_image)
-        load_image_button.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.save_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.display_4k_image)
-        self.save_button.grid(row=0, column=1, padx=5, pady=5, sticky="e")
-        for name in slider_names:
-            getattr(self, f"{name}_slider").bind("<ButtonRelease-1>", lambda event, name=name: self.update_plot(changed_slider=name))
-        self.root.geometry("1100x900")
-        self.root.geometry("+0+0")
-        self.update_plot()
+   
     def run(self):
         self.root.mainloop()
