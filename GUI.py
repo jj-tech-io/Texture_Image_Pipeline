@@ -136,8 +136,14 @@ class SkinParameterAdjustmentApp:
         parameter_maps[:, 4] = scale_t * parameter_maps[:, 4]
         cm_new =  (cm_blend_slider * self.cm_blend.reshape(-1)) + (1 - cm_blend_slider) * parameter_maps[:, 0]
         parameter_maps[:, 0] = cm_new
+        ch_new = (cm_blend_slider * self.ch_blend.reshape(-1)) + (1 - cm_blend_slider) * parameter_maps[:, 1]
+        parameter_maps[:, 1] = ch_new
+        bm_new = (cm_blend_slider * self.bm_blend.reshape(-1)) + (1 - cm_blend_slider) * parameter_maps[:, 2]
+        parameter_maps[:, 2] = bm_new
         bh_new = (bh_blend_slider * self.bh_blend.reshape(-1)) + (1 - bh_blend_slider) * parameter_maps[:, 3]
         parameter_maps[:, 3] = bh_new
+        t_new = (cm_blend_slider * self.t_blend.reshape(-1)) + (1 - cm_blend_slider) * parameter_maps[:, 4]
+        parameter_maps[:, 4] = t_new
         recovered = autoencoder.decode(parameter_maps).reshape((self.WIDTH, self.HEIGHT, 3)) * 255
         self.parameter_maps = parameter_maps
         self.modified_image = recovered
@@ -222,11 +228,11 @@ class SkinParameterAdjustmentApp:
         self.bm_slider = self.create_slider(self.frame_sliders, "Bm:", 0, 2, 0.1, 1)
         self.bh_slider = self.create_slider(self.frame_sliders, "Bh:", 0, 2, 0.1, 0.9)
         self.t_slider = self.create_slider(self.frame_sliders, "T:", 0, 2, 0.1, 1)
-        self.cm_blend_slider = self.create_slider(self.frame_sliders, "Cm blend:", -1, 1, 0.1, 0.4)
-        self.ch_blend_slider = self.create_slider(self.frame_sliders, "Ch blend:", -1, 1, 0.1, 0.4)
-        self.bm_blend_slider = self.create_slider(self.frame_sliders, "Bm blend:", -1, 1, 0.1, 0.4)
-        self.bh_blend_slider = self.create_slider(self.frame_sliders, "Bh blend:", -0.2, 0.2, 0.01, 0.0)
-        self.t_blend_slider = self.create_slider(self.frame_sliders, "T blend:", -1, 1, 0.1, 0.4)
+        self.cm_blend_slider = self.create_slider(self.frame_sliders, "Cm blend:", 0, 1, 0.01, 0.0)
+        self.ch_blend_slider = self.create_slider(self.frame_sliders, "Ch blend:", 0, 1, 0.01, 0.0)
+        self.bm_blend_slider = self.create_slider(self.frame_sliders, "Bm blend:", 0, 1, 0.01, 0.0)
+        self.bh_blend_slider = self.create_slider(self.frame_sliders, "Bh blend:", 0, 1, 0.01, 0.0)
+        self.t_blend_slider = self.create_slider(self.frame_sliders, "T blend:", 0, 1, 0.01, 0.0)
         # Step 1: Create a BooleanVar variable to track the state of the checkbox
         self.var_3d = tk.BooleanVar()
         self.var_3d.set(False)
