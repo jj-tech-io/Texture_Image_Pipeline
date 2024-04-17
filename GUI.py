@@ -33,7 +33,7 @@ from onnx_inference import modify_latent
 import dense_lm
 #reload(dense_lm)
 importlib.reload(dense_lm)
-from dense_lm.morph import morph_images
+from dense_lm.morph import morph_images, load_images
 from dense_lm.segmentation import extract_masks
 
 class SkinParameterAdjustmentApp:
@@ -62,25 +62,20 @@ class SkinParameterAdjustmentApp:
 
     def load_images(self, width, height):
         try:
-            warped_example_image, original_image = morph_images(self.example_texture_path, self.target_texture_path, width, height)
+            # warped_example_image, original_image = morph_images(self.example_texture_path, self.target_texture_path, width, height)
+            warped_example_image, original_image = load_images(self.example_texture_path, self.target_texture_path, width, height)
+            original_image = cv2.imread(self.target_texture_path)
+            blush_mask = cv2.imread(self.example_texture_path)
+            # warped_example_image = cv2.cvtColor(warped_example_image, cv2.COLOR_BGR2RGB)
+            # original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+
+            
             torch_skin = fps.FacePartSegmentation()
             mask, image_skin = torch_skin.get_skin(original_image)
-            warped_example_image[mask == 0] = 0
+            image_skin = cv2.resize(image_skin, (width, height),interpolation=cv2.INTER_LANCZOS4)
+            # warped_example_image[mask == 0] = 0
             Cm, Ch, Bm, Bh, T = extract_masks(warped_example_image)
-            
-            
-            # fig, ax = plt.subplots(1, 3, figsize=(15, 5))
-            # warped_example_image = cv2.cvtColor(warped_example_image, cv2.COLOR_BGR2RGB)
-            # #only show skin
-            
-            # ax[0].imshow(warped_example_image)
-            # ax[0].set_title("warped example image")
-            # ax[1].imshow(mask)
-            # ax[1].set_title("mask")
-            # ax[2].imshow(image_skin)
-            # ax[2].set_title("Warped Example Image")
-  
-            # plt.show()
+
             self.temp = warped_example_image
             self.skin = np.where(image_skin == 0, 0, warped_example_image)
             self.original_image = original_image
@@ -120,6 +115,14 @@ class SkinParameterAdjustmentApp:
         slider.grid(row=0, column=1, sticky='ew')  # Align slider to the right, expand horizontally
         frame.grid_columnconfigure(1, weight=1)  # This allows the slider to expand
         return slider
+    def start_save_4k_image(self):
+        # Show the progress bar
+        self.progress_bar.pack()  # Using pack to show
+        self.progress_bar['value'] = 0
+        self.root.update_idletasks()
+
+        # Start the save operation in a separate thread
+        threading.Thread(target=self.save_4k_image).start()
     def save_4k_image(self):
         self.WIDTH = self.SAVE_DIM
         self.HEIGHT = self.SAVE_DIM
@@ -255,14 +258,17 @@ class SkinParameterAdjustmentApp:
     def create_slider(self, parent, label, from_, to, resolution, default_value):
         # Create the label for the slider
         label = ttk.Label(parent, text=label, background='#4D4D4D', foreground='white')
-        label.pack(side=tk.TOP, fill=tk.X)
+        label.grid(sticky='ew')  # Use grid layout
 
-        # Create the slider with tk.Scale instead of ttk.Scale
+        # Create the slider
         slider = tk.Scale(parent, from_=from_, to=to, orient=tk.HORIZONTAL, resolution=resolution, 
                         bg='#4D4D4D', fg='white', troughcolor='#333333', sliderrelief='flat', 
                         highlightbackground='#4D4D4D', highlightthickness=0)
         slider.set(default_value)
-        slider.pack(side=tk.TOP, fill=tk.X)  # Use fill=tk.X to make the slider fill the width of the frame
+        slider.config(length=200, width=10)  # Adjusted size
+        slider.grid(sticky='ew')  # Use grid layout
+        #add padding to the slider
+        slider.grid(padx=10, pady=0)
 
         return slider
     def create_gui2(self):
@@ -271,10 +277,11 @@ class SkinParameterAdjustmentApp:
         # self.root.attributes("-fullscreen", True)
         w = self.root.winfo_screenwidth()
         h = self.root.winfo_screenheight()
-        self.root.geometry(f"{w//3}x{h-100}")
+        self.root.geometry(f"{w//2}x{h}")
         self.root.geometry("+0+0")
         self.root.resizable(True, True)
         self.root.configure(bg='#4D4D4D') 
+        
         style = ttk.Style()
         style.configure('TFrame', background='#4D4D4D')
         style = ttk.Style(self.root)
@@ -297,44 +304,55 @@ class SkinParameterAdjustmentApp:
             troughcolor=[('active', '#333333'), ('!disabled', '#333333')],
             slider=[('active', '#666666'), ('!disabled', '#666666')])
         # Frames setup
+        # Frames setup with grid layout for efficient space usage
         self.frame_sliders = ttk.Frame(self.root, style='TFrame')
-        self.frame_sliders.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.frame_sliders.grid(row=0, column=0, sticky='nsew')
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
         self.frame_buttons = ttk.Frame(self.root, style='TFrame')
-        self.frame_buttons.pack(side=tk.BOTTOM, fill=tk.X, expand=False)
+        self.frame_buttons.grid(row=1, column=0, sticky='ew')
+
         self.frame_images = ttk.Frame(self.root, style='TFrame')
-        self.frame_images.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self.frame_images.grid(row=2, column=0, sticky='nsew')
 
         # Configure the frame_sliders grid to fill and expand
-        self.frame_sliders.grid_columnconfigure(0, weight=1)  # This allows the left column to expand
-        self.frame_sliders.grid_columnconfigure(1, weight=1)  # This allows the right column to expand
+        self.frame_sliders.grid_columnconfigure(0, weight=1)
+        self.frame_sliders.grid_columnconfigure(1, weight=1)
 
-        # Create two columns for sliders
-        self.frame_sliders_left = ttk.Frame(self.frame_sliders, style='TFrame')
-        self.frame_sliders_left.grid(row=0, column=0, padx=10, sticky='ew')  # sticky 'ew' makes it fill horizontally
-        self.frame_sliders_right = ttk.Frame(self.frame_sliders, style='TFrame')
-        self.frame_sliders_right.grid(row=0, column=1, padx=10, sticky='ew')  # sticky 'ew' makes it fill horizontally
+        # Create two columns for sliders using grid layout
+        # self.frame_sliders_col1 = ttk.Frame(self.frame_sliders, style='TFrame')
+        # self.frame_sliders_col1.grid(row=0, column=0, sticky='nsew')
+        # self.frame_sliders_col2 = ttk.Frame(self.frame_sliders, style='TFrame')
+        # self.frame_sliders_col2.grid(row=0, column=1, sticky='nsew')
+        self.frame_sliders_col1 = ttk.Frame(self.frame_sliders, style='TFrame')
+        self.frame_sliders_col1.grid(row=0, column=0, sticky='nsew')
+        self.frame_sliders_col2 = ttk.Frame(self.frame_sliders, style='TFrame')
+        self.frame_sliders_col2.grid(row=0, column=1, sticky='nsew')
+        self.frame_sliders_col3 = ttk.Frame(self.frame_sliders, style='TFrame')
+        self.frame_sliders_col3.grid(row=0, column=2, sticky='nsew')
 
 
 
         # After creating the slider, set its style to the custom one
-        self.age_coef_slider = self.create_slider(self.frame_sliders_left, "Age(decades):", 0, 10, 0.1, 0.0)
-        self.cm_blend_slider = self.create_slider(self.frame_sliders_left, "Cm blend:", 0, 1, 0.01, 0.0)
-        self.ch_blend_slider = self.create_slider(self.frame_sliders_left, "Ch blend:", 0, 1, 0.01, 0.0)
-        self.bm_blend_slider = self.create_slider(self.frame_sliders_left, "Bm blend:", 0, 1, 0.01, 0.0)
-        self.bh_blend_slider = self.create_slider(self.frame_sliders_left, "Bh blend:", 0, 1, 0.01, 0.0)
-        self.t_blend_slider = self.create_slider(self.frame_sliders_left, "T blend:", 0, 1, 0.01, 0.0)
+        self.age_coef_slider = self.create_slider(self.frame_sliders_col1, "Age(decades):", 0, 10, 0.1, 0.0)
+        self.cm_blend_slider = self.create_slider(self.frame_sliders_col1, "Cm blend:", 0, 1, 0.01, 0.0)
+        self.ch_blend_slider = self.create_slider(self.frame_sliders_col1, "Ch blend:", 0, 1, 0.01, 0.0)
+        self.bm_blend_slider = self.create_slider(self.frame_sliders_col1, "Bm blend:", 0, 1, 0.01, 0.0)
+        self.bh_blend_slider = self.create_slider(self.frame_sliders_col1, "Bh blend:", 0, 1, 0.01, 0.0)
+        self.t_blend_slider = self.create_slider(self.frame_sliders_col1, "T blend:", 0, 1, 0.01, 0.0)
 
         # Sliders in the right column (All other sliders)
-        self.cm_slider = self.create_slider(self.frame_sliders_right, "Cm:", 0, 2, 0.1, 1)
-        self.cm_bias_slider = self.create_slider(self.frame_sliders_right, "Cm bias:", -0.1, 0.1, 0.01, 0.0)
-        self.ch_slider = self.create_slider(self.frame_sliders_right, "Ch:", 0, 2, 0.1, 1)
-        self.ch_bias_slider = self.create_slider(self.frame_sliders_right, "Ch bias:", -0.1, 0.1, 0.01, 0.0)
-        self.bm_slider = self.create_slider(self.frame_sliders_right, "Bm:", 0, 2, 0.1, 1)
-        self.bm_bias_slider = self.create_slider(self.frame_sliders_right, "Bm bias:", -0.1, 0.1, 0.01, 0.0)
-        self.bh_slider = self.create_slider(self.frame_sliders_right, "Bh:", 0, 2, 0.1, 1)
-        self.bh_bias_slider = self.create_slider(self.frame_sliders_right, "Bh bias:", -0.1, 0.1, 0.01, 0.0)
-        self.t_slider = self.create_slider(self.frame_sliders_right, "T:", 0, 2, 0.1, 1)
-        self.t_bias_slider = self.create_slider(self.frame_sliders_right, "T bias:", -0.1, 0.1, 0.01, 0.0)
+        self.cm_slider = self.create_slider(self.frame_sliders_col2, "Cm:", 0, 2, 0.1, 1)
+        self.cm_bias_slider = self.create_slider(self.frame_sliders_col3, "Cm bias:", -0.1, 0.1, 0.01, 0.0)
+        self.ch_slider = self.create_slider(self.frame_sliders_col2, "Ch:", 0, 2, 0.1, 1)
+        self.ch_bias_slider = self.create_slider(self.frame_sliders_col3, "Ch bias:", -0.1, 0.1, 0.01, 0.0)
+        self.bm_slider = self.create_slider(self.frame_sliders_col2, "Bm:", 0, 2, 0.1, 1)
+        self.bm_bias_slider = self.create_slider(self.frame_sliders_col3, "Bm bias:", -0.1, 0.1, 0.01, 0.0)
+        self.bh_slider = self.create_slider(self.frame_sliders_col2, "Bh:", 0, 2, 0.1, 1)
+        self.bh_bias_slider = self.create_slider(self.frame_sliders_col3, "Bh bias:", -0.1, 0.1, 0.01, 0.0)
+        self.t_slider = self.create_slider(self.frame_sliders_col2, "T:", 0, 2, 0.1, 1)
+        self.t_bias_slider = self.create_slider(self.frame_sliders_col3, "T bias:", -0.1, 0.1, 0.01, 0.0)
 
 
         # Step 1: Create a BooleanVar variable to track the state of the checkbox
@@ -363,72 +381,20 @@ class SkinParameterAdjustmentApp:
         self.bm_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.t_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
         self.save_button.bind("<ButtonRelease-1>", lambda event: self.save_4k_image())
+        #add labels for original and modified images
+        self.original_label = ttk.Label(self.frame_images, text="Original Image", background='#4D4D4D', foreground='white')
+        self.original_label.pack(side=tk.LEFT, padx=10, pady=10)
+        self.modified_label = ttk.Label(self.frame_images, text="Modified Image", background='#4D4D4D', foreground='white')
+        self.modified_label.pack(side=tk.LEFT, padx=10, pady=10)
         load_image_button = ttk.Button(self.frame_buttons, text="Load New Image", command=self.load_new_image)
         load_image_button.pack(side=tk.LEFT, padx=5, pady=5)
         load_example_image_button = ttk.Button(self.frame_buttons, text="Load Example Image", command=self.load_example_image)
         load_example_image_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.root.geometry(f"{w//2}x{h}+0+0")
         self.update_plot()
 
 
 
-    def create_gui(self):
-        self.frame_sliders = ttk.Frame(self.root)
-        self.frame_sliders.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.frame_sliders.configure(width=300, height=300)
-        self.frame_buttons = ttk.Frame(self.root)
-        self.frame_buttons.pack(side=tk.BOTTOM, fill=tk.X, expand=False)
-        self.frame_images = ttk.Frame(self.root)
-        self.frame_images.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.age_coef_slider = self.create_slider(self.frame_sliders, "Age(decades):", 0, 10, 0.1,0.0)
-        self.cm_slider = self.create_slider(self.frame_sliders, "Cm:", 0, 2, 0.1, 1)
-        self.cm_bias_slider = self.create_slider(self.frame_sliders, "Cm bias:", -0.1, 0.1, 0.01, 0.0)
-        self.ch_slider = self.create_slider(self.frame_sliders, "Ch:", 0, 2, 0.1, 1)
-        self.ch_bias_slider = self.create_slider(self.frame_sliders, "Ch bias:", -0.1, 0.1, 0.01, 0.0)
-        self.bm_slider = self.create_slider(self.frame_sliders, "Bm:", 0, 2, 0.1, 1)
-        self.bm_bias_slider = self.create_slider(self.frame_sliders, "Bm bias:", -0.1, 0.1, 0.01, 0.0)
-        self.bh_slider = self.create_slider(self.frame_sliders, "Bh:", 0, 2, 0.1, 1)
-        self.bh_bias_slider = self.create_slider(self.frame_sliders, "Bh bias:", -0.1, 0.1, 0.01, 0.0)
-        self.t_slider = self.create_slider(self.frame_sliders, "T:", 0, 2, 0.1, 1)
-        self.t_bias_slider = self.create_slider(self.frame_sliders, "T bias:", -0.1, 0.1, 0.01, 0.0)
-        self.cm_blend_slider = self.create_slider(self.frame_sliders, "Cm blend:", 0, 1, 0.01, 0.0)
-        self.ch_blend_slider = self.create_slider(self.frame_sliders, "Ch blend:", 0, 1, 0.01, 0.0)
-        self.bm_blend_slider = self.create_slider(self.frame_sliders, "Bm blend:", 0, 1, 0.01, 0.0)
-        self.bh_blend_slider = self.create_slider(self.frame_sliders, "Bh blend:", 0, 1, 0.01, 0.0)
-        self.t_blend_slider = self.create_slider(self.frame_sliders, "T blend:", 0, 1, 0.01, 0.0)
-        # Step 1: Create a BooleanVar variable to track the state of the checkbox
-        self.var_3d = tk.BooleanVar()
-        self.var_3d.set(False)
-        # Step 2: Create the Checkbutton widget with the command option
-        self.checkbox_3d = ttk.Checkbutton(self.frame_buttons, text="3D Mode", variable=self.var_3d, command=self.apply_mask)
-        # Step 3: Place the checkbox in the GUI
-        self.checkbox_3d.pack(side=tk.LEFT, padx=5, pady=5)
-        self.save_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.save_4k_image)
-        self.save_button.pack(side=tk.RIGHT, padx=5, pady=5)
-        self.age_coef_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.cm_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.cm_bias_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.ch_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.ch_bias_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bm_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bm_bias_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bh_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bh_bias_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.t_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.t_bias_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.cm_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.ch_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bh_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.bm_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.t_blend_slider.bind("<ButtonRelease-1>", lambda event: self.update_plot())
-        self.save_button.bind("<ButtonRelease-1>", lambda event: self.save_4k_image())
-        load_image_button = ttk.Button(self.frame_buttons, text="Load New Image", command=self.load_new_image)
-        load_image_button.pack(side=tk.LEFT, padx=5, pady=5)
-        load_example_image_button = ttk.Button(self.frame_buttons, text="Load Example Image", command=self.load_example_image)
-        load_example_image_button.pack(side=tk.LEFT, padx=5, pady=5)
-        self.root.resizable(True, True)
-        self.root.geometry("1100x300")
-        self.root.geometry("+0+0")
-        self.update_plot()
 
    
     def run(self):

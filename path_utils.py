@@ -27,3 +27,6 @@ class PathUtils:
 
 # Make sure this is executed when the module is imported
 PathUtils.add_project_paths()
+
+#to import this module, use the following code:
+# import path_utils

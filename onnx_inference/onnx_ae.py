@@ -32,4 +32,3 @@ class ONNXAutoencoder:
         decoded_data = np.asarray(self.run_inference(self.decoder_session, encoded_data)[0])
         return decoded_data
 
-        # Prepare your input data (example data provided here)

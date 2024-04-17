@@ -1,3 +1,5 @@
 {
-    "workbench.colorTheme": "Visual Studio 2019 Dark"
+    "workbench.colorTheme": "Visual Studio 2019 Dark",
+    "terminal.integrated.fontSize": 11,
+    "terminal.integrated.shellIntegration.history": 500
 }
