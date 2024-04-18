@@ -1,8 +1,21 @@
-
+# Ignore everything
 *.png
 *.jpg
 *.pyc
 *.xml
 *.iml
-fitzpatrick
-image_processing
+fitzpatrick/
+image_processing/
+
+# But not these specific ONNX model files
+!onnx_inference/no_duplicates_75_2_mask_decoder.onnx
+!onnx_inference/no_duplicates_75_2_mask_encoder.onnx
+!onnx_inference/small_batch_size_encoder.onnx
+!onnx_inference/small_batch_size_decoder.onnx
+
+# And not these specific image files
+!fitzpatrick/m32_4k.png
+!txyz2mh_32_pc.jpg
+!D:/Desktop/man mh/FaceColor_MAIN.PNG
+!FaceColor_MAIN.PNG
+!C:/Desktop/PXL_20240202_063955440.jpg
