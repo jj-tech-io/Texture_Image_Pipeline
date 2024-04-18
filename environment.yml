@@ -206,4 +206,4 @@ dependencies:
       - torchaudio==2.1.2
       - torchvision==0.16.2
       - ursina==6.1.2
-prefix: C:\Users\joeli\miniforge3
+
