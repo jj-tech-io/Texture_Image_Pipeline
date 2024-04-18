@@ -41,8 +41,8 @@ git clone https://github.com/jj-tech-io/Deep-Albedo.git
 cd Deep-Albedo
 
 # Install the required packages and set up the environment using Mamba:
-mamba env create -f environment.yml
-mamba activate deep_albedo
+- mamba env create -f environment.yml
+- mamba activate deep_albedo
 
 # Run the application:
 python main.py
