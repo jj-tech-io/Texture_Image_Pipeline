@@ -1,4 +1,8 @@
 import os
+#CONFIG.py CONFIG.py
+import CONFIG
+# import pathlib
+
 CWD = os.getcwd()
 current_script_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(current_script_path)
@@ -7,9 +11,10 @@ print(f"initializing onnx_ae from {current_script_path}")
 # Paths to your ONNX model files
 # encoder_model_path = 'no_duplicates_75_2_mask_encoder.onnx'
 # decoder_model_path = 'no_duplicates_75_2_mask_decoder.onnx'
-encoder_model_path ='small_batch_size_encoder.onnx'
-decoder_model_path ='small_batch_size_decoder.onnx'
-
+# encoder_model_path ='small_batch_size_encoder.onnx'
+# decoder_model_path ='small_batch_size_decoder.onnx'
+encoder_model_path = CONFIG.ENCODER_PATH
+decoder_model_path = CONFIG.DECODER_PATH
 # C:\Users\joeli\Dropbox\Code\Python Projects\AE_2024_01 - Copy\weights and biases\bm_decoder.onnx
 # decoder_model_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\onnx_inference\april_3_2024_decoder.onnx"
 # encoder_model_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\onnx_inference\april_3_2024_encoder.onnx"

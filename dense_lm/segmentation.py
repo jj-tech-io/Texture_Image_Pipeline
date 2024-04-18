@@ -21,15 +21,10 @@ import random
 import sys
 from pathlib import Path
 current_script_dir = Path(__file__).resolve()
-# Get the parent directory (one level up)
 parent_dir = current_script_dir.parent
-# Get the root directory (two levels up or more if needed)
-# root_dir = current_script_dir.parents[1]  # Use parents[2], parents[3], etc., for higher levels
-# Add both directories to sys.path
 sys.path.append(str(parent_dir))
-# sys.path.append(str(root_dir))
-import dense_lm
 
+import dense_lm
 from dense_lm import landmarks as lm
 import onnx_inference
 from onnx_inference import onnx_ae

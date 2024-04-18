@@ -5,7 +5,6 @@ current_script_dir = Path(__file__).resolve()
 # Get the parent directory (one level up)
 parent_dir = current_script_dir.parent
 sys.path.append(str(parent_dir))
-print(f"parent_dir: {parent_dir}")
 import importlib
 import sys
 import time
@@ -22,19 +21,18 @@ from pathlib import Path
 
 import torch_face
 from torch_face import face_part_segmentation as fps
-importlib.reload(CONFIG)
+
 import numpy as np
 import dense_lm
 from dense_lm import segmentation, morph
-importlib.reload(dense_lm)
 import onnx_inference
 from onnx_inference import autoencoder
 from onnx_inference import modify_latent
 import dense_lm
-#reload(dense_lm)
-importlib.reload(dense_lm)
 from dense_lm.morph import morph_images, load_images
 from dense_lm.segmentation import extract_masks
+importlib.reload(dense_lm)
+importlib.reload(CONFIG)
 
 class SkinParameterAdjustmentApp:
     no_background_image = None
@@ -50,7 +48,9 @@ class SkinParameterAdjustmentApp:
         self.SAVE_DIM = 4096
         self.WIDTH = self.DIM
         self.HEIGHT = self.DIM
+        self.warp_example_var = False
         self.load_images(self.DIM, self.DIM)
+
         self.init_app()
 
     def init_app(self):
@@ -58,24 +58,24 @@ class SkinParameterAdjustmentApp:
         self.root.configure(background='black')
         self.root["bg"] = "black"
         self.root.title("Interactive Skin Parameter Adjustment")
-        self.create_gui2()
+        self.create_gui()
 
     def load_images(self, width, height):
         try:
-            # warped_example_image, original_image = morph_images(self.example_texture_path, self.target_texture_path, width, height)
-            warped_example_image, original_image = load_images(self.example_texture_path, self.target_texture_path, width, height)
+            if self.warp_example_var:
+                warped_example_image, original_image = morph_images(self.example_texture_path, self.target_texture_path, width, height)
+            else:
+                warped_example_image, original_image = load_images(self.example_texture_path, self.target_texture_path, width, height)
             original_image = cv2.imread(self.target_texture_path)
             blush_mask = cv2.imread(self.example_texture_path)
             # warped_example_image = cv2.cvtColor(warped_example_image, cv2.COLOR_BGR2RGB)
             # original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
 
-            
             torch_skin = fps.FacePartSegmentation()
             mask, image_skin = torch_skin.get_skin(original_image)
             image_skin = cv2.resize(image_skin, (width, height),interpolation=cv2.INTER_LANCZOS4)
             # warped_example_image[mask == 0] = 0
             Cm, Ch, Bm, Bh, T = extract_masks(warped_example_image)
-
             self.temp = warped_example_image
             self.skin = np.where(image_skin == 0, 0, warped_example_image)
             self.original_image = original_image
@@ -93,7 +93,6 @@ class SkinParameterAdjustmentApp:
         self.modified_image = self.original_image.copy()
         self.parameter_maps = autoencoder.encode(self.original_image.reshape(-1, 3) / 255.0)
         self.parameter_maps_original = self.parameter_maps.copy()
-
 
     def create_slider1(self, parent, label, from_, to, resolution, default_value):
         frame = ttk.Frame(parent)
@@ -241,9 +240,9 @@ class SkinParameterAdjustmentApp:
             self.load_new()
     def apply_mask(self):
         print("apply mask")
-        print(f"var_3d: {self.var_3d.get()}")
+        print(f"isBackgroundToggled: {self.isBackgroundToggled.get()}")
 
-        if self.var_3d.get():
+        if self.isBackgroundToggled.get():
             # Apply the mask
             self.modified_image = self.original_image.copy()
             self.temp = self.modified_image.copy()
@@ -271,26 +270,28 @@ class SkinParameterAdjustmentApp:
         slider.grid(padx=10, pady=0)
 
         return slider
-    def create_gui2(self):
-        # Main window geometry setup
-        #get widow size of screen
-        # self.root.attributes("-fullscreen", True)
+    
+    def toggle_warp_example(self):
+        self.warp_example_var = not self.warp_example_var
+        if self.warp_example_var:
+            self.warp_status_label.config(text="Warp applied")
+        else:
+            self.warp_status_label.config(text="Warp not applied")
+        self.load_new()
+        
+    def create_gui(self):
         w = self.root.winfo_screenwidth()
         h = self.root.winfo_screenheight()
         self.root.geometry(f"{w//2}x{h}")
         self.root.geometry("+0+0")
         self.root.resizable(True, True)
         self.root.configure(bg='#4D4D4D') 
-        
         style = ttk.Style()
         style.configure('TFrame', background='#4D4D4D')
         style = ttk.Style(self.root)
         style.theme_use('clam')
         # Configure the background color of the TFrame to be dark grey
         style.configure('TFrame', background='#4D4D4D')
-
-        # Configure the TScale style to have a dark grey background
-        # Adjust the colors as needed to match your dark theme
         style.configure("TScale", background='#4D4D4D', foreground='white', troughcolor='#4D4D4D')
         # Configure the style for the Button to match the dark theme
         style.configure('TButton', background='#4D4D4D', foreground='white', borderwidth=1)
@@ -319,20 +320,12 @@ class SkinParameterAdjustmentApp:
         # Configure the frame_sliders grid to fill and expand
         self.frame_sliders.grid_columnconfigure(0, weight=1)
         self.frame_sliders.grid_columnconfigure(1, weight=1)
-
-        # Create two columns for sliders using grid layout
-        # self.frame_sliders_col1 = ttk.Frame(self.frame_sliders, style='TFrame')
-        # self.frame_sliders_col1.grid(row=0, column=0, sticky='nsew')
-        # self.frame_sliders_col2 = ttk.Frame(self.frame_sliders, style='TFrame')
-        # self.frame_sliders_col2.grid(row=0, column=1, sticky='nsew')
         self.frame_sliders_col1 = ttk.Frame(self.frame_sliders, style='TFrame')
         self.frame_sliders_col1.grid(row=0, column=0, sticky='nsew')
         self.frame_sliders_col2 = ttk.Frame(self.frame_sliders, style='TFrame')
         self.frame_sliders_col2.grid(row=0, column=1, sticky='nsew')
         self.frame_sliders_col3 = ttk.Frame(self.frame_sliders, style='TFrame')
         self.frame_sliders_col3.grid(row=0, column=2, sticky='nsew')
-
-
 
         # After creating the slider, set its style to the custom one
         self.age_coef_slider = self.create_slider(self.frame_sliders_col1, "Age(decades):", 0, 10, 0.1, 0.0)
@@ -354,12 +347,17 @@ class SkinParameterAdjustmentApp:
         self.t_slider = self.create_slider(self.frame_sliders_col2, "T:", 0, 2, 0.1, 1)
         self.t_bias_slider = self.create_slider(self.frame_sliders_col3, "T bias:", -0.1, 0.1, 0.01, 0.0)
 
-
         # Step 1: Create a BooleanVar variable to track the state of the checkbox
-        self.var_3d = tk.BooleanVar()
-        self.var_3d.set(False)
+        self.isBackgroundToggled = tk.BooleanVar()
+        self.isBackgroundToggled.set(False)
+
         # Step 2: Create the Checkbutton widget with the command option
-        self.checkbox_3d = ttk.Checkbutton(self.frame_buttons, text="Toggle Background", variable=self.var_3d, command=self.apply_mask)
+        self.checkbox_3d = ttk.Checkbutton(self.frame_buttons, text="Toggle Background", variable=self.isBackgroundToggled, command=self.apply_mask)
+        self.warp_example_var = tk.BooleanVar(value=False)
+        self.warp_example_checkbox = ttk.Checkbutton(self.frame_buttons, text="Warp Example", variable=self.warp_example_var, command=self.toggle_warp_example)
+        self.warp_example_checkbox.pack(side=tk.LEFT, padx=5, pady=5)
+        self.warp_status_label = ttk.Label(self.frame_buttons, text="Warp not applied", background='#4D4D4D', foreground='white')
+        self.warp_status_label.pack(side=tk.LEFT, padx=5, pady=5)
         # Step 3: Place the checkbox in the GUI
         self.checkbox_3d.pack(side=tk.LEFT, padx=5, pady=5)
         self.save_button = ttk.Button(self.frame_buttons, text="Save 4K Image", command=self.save_4k_image)
@@ -393,18 +391,7 @@ class SkinParameterAdjustmentApp:
         self.root.geometry(f"{w//2}x{h}+0+0")
         self.update_plot()
 
-
-
-
    
     def run(self):
         self.root.mainloop()
 
-if __name__ == '__main__':
-    working_dir = os.getcwd()
-    ### --- age example texture --- ###
-    example_texture_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\m32_4k.png"
-    ### --- texture to be modified --- ###
-    target_texture_path = r"C:\Users\joeli\Dropbox\Code\Python Projects\Texture_Image_Pipeline\fitzpatrick\ft_4_m53_4k.png"
-    app = SkinParameterAdjustmentApp(target_texture_path, example_texture_path)
-    app.run()

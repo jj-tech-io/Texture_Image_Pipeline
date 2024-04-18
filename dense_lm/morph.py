@@ -142,6 +142,7 @@ def load_images(example_image_path, target_image_path,width, height):
     target_image_path = str(target_image_path)
     try:
         target_image = cv2.imread(target_image_path)
+        print(target_image.shape)
         target_image = cv2.resize(target_image, (width, height),interpolation=cv2.INTER_LANCZOS4)
     except:
         print(f"Error: could not read source image {example_image_path}")
@@ -153,130 +154,7 @@ def load_images(example_image_path, target_image_path,width, height):
         print(f"Error: could not read source image {example_image_path}")
         sys.exit()
     return example_image, target_image
-# if __name__ == '__main__':
 
-#     # ma "D:\Unity Projects\flame\Assets\33346.png"
-#     # mb ""D:\Unity Projects\flame\Assets\m46_4k.png""
-#     # target_image_path = r"C:\Users\joeli\Dropbox\Data\models_4k\light\m32_4k.png"
-#     # source_image_path = r"C:\Users\joeli\Dropbox\Data\face_image_data\facescape\2\models_reg\1_neutral.jpg"
-   
-    
-#     target_image_path = r"D:\Unity Projects\flame\Assets\33346.png"
-#     source_image_path = r"D:\Unity Projects\flame\Assets\m46_4k.png"
-#     target_image = cv2.imread(target_image_path)
-#     source_image = cv2.imread(source_image_path)
-    
-#     WIDTH = 1024
-#     HEIGHT = 1024
-#     # Original sizes
-#     original_target_width, original_target_height = target_image.shape[1], target_image.shape[0]
-#     original_source_width, original_source_height = source_image.shape[1], source_image.shape[0]
-
-#     # Calculate scaling factors
-#     scale_factor_target_width = WIDTH / original_target_width 
-#     scale_factor_target_height = HEIGHT / original_target_height
-#     scale_factor_source_width = WIDTH / original_source_width
-#     scale_factor_source_height = HEIGHT / original_source_height
-#     print(f"scale_factor_target_width: {scale_factor_target_width}, scale_factor_target_height: {scale_factor_target_height}")
-#     print(f"scale_factor_source_width: {scale_factor_source_width}, scale_factor_source_height: {scale_factor_source_height}")
-#     target_image = cv2.resize(target_image, (WIDTH, HEIGHT))
-#     source_image = cv2.resize(source_image, (WIDTH, HEIGHT))
-
-#     if source_image is None or target_image is None:
-#         print("Error: could not read one of the images.")
-#         # Handle the error, for example by exiting the script
-#         sys.exit()
-
-#     # load landmarks
-#     #m1 is target
-#     #m2 is source
-#     # i,u1,v1,u2,v2
-#     # 0,0.4945696,0.5239752,0.5040277,0.5081507
-#     # 1,0.6577965,0.5985687,0.6957955,0.6291448
-#     # 2,0.573979,0.6166188,0.5784552,0.6308378 ...
-#     target_lm_path = r"D:\Unity Projects\flame\Assets\points1.txt"
-#     source_lm_path = r"D:\Unity Projects\flame\Assets\points2.txt"
-#     #read each row 
-#     target_landmarks = []
-#     source_landmarks = []
-#     WIDTH = 1024
-#     HEIGHT = 1024
-#     count = 0
-#     with open(target_lm_path, "r") as file:
-#         for line in file:
-#             if line.startswith("#") or line.startswith("m") or line.startswith("i"):
-#                 continue
-#             if line.startswith("i"):
-#                 continue
-#             # print(line)
-#             i,u1,v1 = line.split(",")
-#             t_lm = (int(float(u1)*WIDTH), int(float(v1)*HEIGHT))
-#             if count < 2:
-#                 print(f"t_lm: {t_lm}")
-#             count += 1
-#             target_landmarks.append(t_lm)
-#     with open(source_lm_path, "r") as file:
-#         for line in file:
-#             if line.startswith("#"):
-#                 continue
-#             if line.startswith("i"):
-#                 continue
-#             # print(line)
-#             i,u2,v2 = line.split(",")
-#             s_lm = (int(float(u2)*WIDTH), int(float(v2)*HEIGHT))
-#             if count < 2:
-#                 print(f"s_lm: {s_lm}")
-#             count += 1
-#             source_landmarks.append(s_lm)
-
- 
-#     target_landmarks2 = get_landmarks(target_image)
-#     source_landmarks2 = get_landmarks(source_image)
-
-#     if target_landmarks2 is None or source_landmarks2 is None:
-#         print("Error: could not get landmarks for one of the images.")
-#         # Handle the error, for example by exiting the script
-#         sys.exit()
-#     #    #combine the landmarks
-#     # target_lm_combined = np.vstack((target_landmarks, target_landmarks2))
-#     # source_lm_combined = np.vstack((source_landmarks, source_landmarks2))
-#     print(f"target_landmarks: {np.asarray(target_landmarks).shape}, target_landmarks2: {np.asarray(target_landmarks2).shape}")
-#     print(f"source_landmarks: {np.asarray(source_landmarks).shape}, source_landmarks2: {np.asarray(source_landmarks2).shape}")
-#     # print lm 2
-#     print(f"target_landmarks2: {target_landmarks2.shape}, source_landmarks2: {source_landmarks2.shape}")
-    
-#     # print(f"target_lm_combined: {target_lm_combined.shape}, source_lm_combined: {source_lm_combined.shape}")
-#     # print(f"target_landmarks_combined: {target_lm_combined.shape}, source_landmarks_combined: {source_lm_combined.shape}")
-#     # #combined shape
-#     # print(f"target_landmarks_combined: {target_lm_combined.shape}, source_landmarks_combined: {source_lm_combined.shape}")
-#     annotated_target_image = target_image.copy()
-#     annotated_source_image = source_image.copy()
-#     for i in range(len(source_landmarks2)):
-#         x_source, y_source = source_landmarks2[i]
-#         x_target, y_target = target_landmarks2[i]
-
-#         lm_str = f"{i} ({x_source},{y_source}) ({x_target},{y_target})"
-#         # cv2.putText(annotated_source_image, str(lm_str), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-
-#         #red for target landmarks 
-#         cv2.circle( annotated_target_image, (x_target, y_target), 5, (0, 0, 255), -1)
-#         cv2.circle(annotated_source_image, (x_source, y_source), 5, (0, 255, 0), -1)
-#         # print(f"landmark {i}: {lm_str}")
-#         # cv2.putText(annotated_target_image, str(lm_str), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-#     # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-#     # ax[0].imshow(cv2.cvtColor(annotated_source_image, cv2.COLOR_BGR2RGB))
-#     # ax[0].set_title("Source image")
-#     # ax[1].imshow(cv2.cvtColor(annotated_target_image, cv2.COLOR_BGR2RGB))
-#     # ax[1].set_title("Target image")
-#     # plt.show()
-#     warped_source_image, delaunay, transformation_matrices = warp_image(target_image, source_image, target_landmarks2, source_landmarks2)
-#     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-#     ax[0].imshow(warped_source_image)
-#     # original example image
-#     ax[1].imshow(source_image)
-#     ax[1].set_title("Original example image")
-#     plt.show()
     
 
     
