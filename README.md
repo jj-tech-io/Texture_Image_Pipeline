@@ -30,7 +30,7 @@ The origin of skin color in this model is determined by the absorption and scatt
 
 ### Installation
 
-```shell
+
 # Install Mamba (if not already installed):
 conda install mamba -n base -c conda-forge
 
@@ -52,19 +52,12 @@ python main.py
 
 Contributions are welcome! Please feel free to submit a pull request.
 
-License
+### License
 -------
 
 This project is licensed under the MIT License.
 
-Contact Information
+### Contact Information
 -------------------
 
-For more information, please contact jj-tech@example.com.
-
-Please note:
-
-- Ensure that the path to the representative image is correct and the image file is accessible in your repository.
-- Replace `images/Representative Image.jpg` with the actual path to the representative image file, ensuring there are no spaces in the file name or URL.
-- Modify the links to the introduction video and demo app video with the correct URLs.
-- Replace `jj-tech@example.com` with your actual contact email or that of the project maintainer.
+For more information, please contact joel.c.j@protonmail.com
